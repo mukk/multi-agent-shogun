@@ -1,0 +1,8 @@
+projects:
+  - id: sample_project
+    name: "Sample Project"
+    path: "/mnt/c/Projects/Sample"
+    priority: high
+    status: active
+
+current_project: sample_project
