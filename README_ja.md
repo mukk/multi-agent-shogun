@@ -90,6 +90,19 @@ claude-shogun/
 
 [Claude-Code-Communication](https://github.com/Akira-Papa/Claude-Code-Communication) by Akira-Papa をベースに開発。
 
+## ロードマップ
+
+### MVP（現在）
+- [x] YAMLベース通信
+- [x] 人間用ダッシュボード
+- [x] ペルソナシステムによる品質担保
+- [x] コンテキスト読み込みルール
+
+### 今後の予定
+- [ ] MCP対応（Notion, Slack, Google Drive, GitHub 等）
+- [ ] 複数プロジェクト並列実行
+- [ ] エージェント障害時の自動復旧
+
 ## ライセンス
 
 MIT License

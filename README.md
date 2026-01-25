@@ -89,6 +89,19 @@ claude-shogun/
 
 Based on [Claude-Code-Communication](https://github.com/Akira-Papa/Claude-Code-Communication) by Akira-Papa.
 
+## Roadmap
+
+### MVP (Current)
+- [x] YAML-based communication
+- [x] Human dashboard
+- [x] Persona system for quality assurance
+- [x] Context loading rules
+
+### Future
+- [ ] MCP integration (Notion, Slack, Google Drive, GitHub, etc.)
+- [ ] Multi-project parallel execution
+- [ ] Auto-recovery from agent failures
+
 ## License
 
 MIT License
