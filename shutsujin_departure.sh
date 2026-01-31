@@ -337,20 +337,52 @@ echo ""
 if [ "$SETUP_ONLY" = false ]; then
     log_war "👑 全軍に Claude Code を召喚中..."
 
+    # Claude Code起動を待ち、必要なら権限ダイアログを承認する関数
+    wait_for_claude() {
+        local pane=$1
+        local max_wait=60
+        local count=0
+        local dialog_handled=0
+
+        while [ $count -lt $max_wait ]; do
+            local pane_content
+            # 改行を除去してから検索（小さいペインでテキストが折り返される対策）
+            pane_content=$(tmux capture-pane -t "$pane" -p 2>/dev/null | tr -d '\n')
+
+            # Claude Codeが起動済みか確認
+            if echo "$pane_content" | grep -qE "bypass|Claude Code v"; then
+                return 0
+            fi
+
+            # 権限ダイアログが表示されていたら承認
+            if [ $dialog_handled -eq 0 ] && echo "$pane_content" | grep -q "I accept"; then
+                tmux send-keys -t "$pane" Down
+                sleep 0.3
+                tmux send-keys -t "$pane" Enter
+                dialog_handled=1
+            fi
+
+            sleep 1
+            count=$((count + 1))
+        done
+        return 1
+    }
+
     # 将軍
     tmux send-keys -t shogun "MAX_THINKING_TOKENS=0 claude --model opus --dangerously-skip-permissions"
     tmux send-keys -t shogun Enter
-    log_info "  └─ 将軍、召喚完了"
+    log_info "  └─ 将軍、召喚中..."
 
-    # 少し待機（安定のため）
-    sleep 1
+    # 家老（i=0）
+    tmux send-keys -t "multiagent:0.0" "claude --dangerously-skip-permissions"
+    tmux send-keys -t "multiagent:0.0" Enter
 
-    # 家老 + 足軽（9ペイン）
-    for i in {0..8}; do
+    # 足軽（i=1-8）
+    for i in {1..8}; do
         tmux send-keys -t "multiagent:0.$i" "claude --dangerously-skip-permissions"
         tmux send-keys -t "multiagent:0.$i" Enter
     done
-    log_info "  └─ 家老・足軽、召喚完了"
+    log_info "  └─ 家老・足軽、召喚中..."
 
     log_success "✅ 全軍 Claude Code 起動完了"
     echo ""
@@ -426,31 +458,33 @@ NINJA_EOF
     echo -e "                               \033[0;36m[ASCII Art: syntax-samurai/ryu - CC0 1.0 Public Domain]\033[0m"
     echo ""
 
-    echo "  Claude Code の起動を待機中（15秒）..."
-    sleep 15
+    # Claude Codeの起動を待って指示書を送る
+    log_info "  └─ 将軍のClaude Code起動を待機中..."
+    if wait_for_claude "shogun"; then
+        tmux send-keys -t shogun "instructions/shogun.md を読んで役割を理解せよ。"
+        tmux send-keys -t shogun Enter
+        log_info "  └─ 将軍に指示書を伝達完了"
+    else
+        log_war "  └─ 将軍のClaude Code起動タイムアウト"
+    fi
 
-    # 将軍に指示書を読み込ませる
-    log_info "  └─ 将軍に指示書を伝達中..."
-    tmux send-keys -t shogun "instructions/shogun.md を読んで役割を理解せよ。"
-    sleep 0.5
-    tmux send-keys -t shogun Enter
+    log_info "  └─ 家老のClaude Code起動を待機中..."
+    if wait_for_claude "multiagent:0.0"; then
+        tmux send-keys -t "multiagent:0.0" "instructions/karo.md を読んで役割を理解せよ。"
+        tmux send-keys -t "multiagent:0.0" Enter
+        log_info "  └─ 家老に指示書を伝達完了"
+    else
+        log_war "  └─ 家老のClaude Code起動タイムアウト"
+    fi
 
-    # 家老に指示書を読み込ませる
-    sleep 2
-    log_info "  └─ 家老に指示書を伝達中..."
-    tmux send-keys -t "multiagent:0.0" "instructions/karo.md を読んで役割を理解せよ。"
-    sleep 0.5
-    tmux send-keys -t "multiagent:0.0" Enter
-
-    # 足軽に指示書を読み込ませる（1-8）
-    sleep 2
-    log_info "  └─ 足軽に指示書を伝達中..."
+    log_info "  └─ 足軽のClaude Code起動を待機中..."
     for i in {1..8}; do
-        tmux send-keys -t "multiagent:0.$i" "instructions/ashigaru.md を読んで役割を理解せよ。汝は足軽${i}号である。"
-        sleep 0.3
-        tmux send-keys -t "multiagent:0.$i" Enter
-        sleep 0.5
+        if wait_for_claude "multiagent:0.$i"; then
+            tmux send-keys -t "multiagent:0.$i" "instructions/ashigaru.md を読んで役割を理解せよ。汝は足軽${i}号である。"
+            tmux send-keys -t "multiagent:0.$i" Enter
+        fi
     done
+    log_info "  └─ 足軽に指示書を伝達完了"
 
     log_success "✅ 全軍に指示書伝達完了"
     echo ""
