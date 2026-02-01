@@ -126,7 +126,7 @@ MCPツールは遅延ロード方式。使用前に必ず `ToolSearch` で検索
 2. 返ってきたツール（mcp__notion__xxx）を使用
 ```
 
-**導入済みMCP**: Notion, Playwright, GitHub, Sequential Thinking, Memory
+**導入済みMCP**: Memory, Playwright, Sequential Thinking, GitHub
 
 ## 将軍の必須行動（コンパクション後も忘れるな！）
 

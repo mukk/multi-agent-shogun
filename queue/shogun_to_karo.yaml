@@ -1,59 +1,589 @@
 queue:
-  - id: cmd_030_commit
-    timestamp: "2026-01-31T16:05:00"
-    command: "cmd_030 Phase 1 成果物をcommitせよ"
-    project: haskell-shogi-engine
+  - id: cmd_001
+    timestamp: "2026-02-01T11:38:27"
+    command: "STS資産評価を実施せよ"
+    project: STS
+    status: completed
+
+  - id: cmd_002
+    timestamp: "2026-02-01T12:03:53"
+    command: "wordpress-full-auditor スキル作成 + STS改善実行"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
+    priority: high
+    status: completed
+    details: |
+      殿より以下の判断が下された：
+
+      【スキル化】承認済み
+      - 足軽4名から提案のWP調査系スキル4件の統合は承認。
+      - ただし、既存の wordpress-site-auditor スキルが既にある可能性がある。
+        既存スキルと重複・統合できるか確認し、あれば統合して拡張せよ。
+        新規作成ではなく既存の拡張が望ましい。
+      - 既存が無ければ wordpress-full-auditor として新規作成してよい。
+      - 判断は家老に任せる。
+
+      【STS改善 — 対応する項目】
+      以下の改善を優先度順に実行せよ：
+        1. 🔴 WebP変換導入（JPG 4,126枚の最適化）
+           ※ 殿の指示: 配信は<picture>タグ方式で実装せよ。
+             <picture><source srcset="xxx.webp" type="image/webp"><img src="xxx.jpg"></picture>
+             .htaccessによるサーバーサイド振り分けではなく、HTMLレベルで対応すること。
+        2. 🔴 Schema.org重複出力の解消（inc/schema.php vs AIOSEO）
+        3. 🟡 W3 Total Cache有効化確認・設定見直し
+        4. 🟡 popup aria-hidden/aria-expanded 追加
+        5. 🟡 フォント読み込み方法の確認
+        6. 🟢 .htaccess セキュリティ強化（本番用）
+        7. 🟢 robots.txt 静的ファイル配置
+        8. 🟢 favicon設定確認
+
+      【対応不要（殿の判断で除外）】
+      - h1-h6フォントサイズ階層化 → 不要
+      - DISALLOW_FILE_EDIT設定 → 不要
+      - llms.txt URL修正 → 不要
+      - 多言語対応 → 不要
+
+      スキル作成と改善作業は並行して進めてよい。
+      進捗はdashboard.mdに随時報告せよ。
+
+  - id: cmd_003
+    timestamp: "2026-02-01T12:06:20"
+    command: "既存スキルを導入済みMCPで代替可能かレビュー"
+    project: multi-agent-shogun
+    priority: lowest
+    status: completed
+    details: |
+      新規導入したMCPサーバーで既存スキルを代替・廃止できるか調査せよ。
+
+      【導入済みMCP】
+      - Playwright（ブラウザ操作・スクレイピング・テスト）
+      - Sequential Thinking（段階的思考・推論）
+      - GitHub（GitHub API連携）
+      - Context7（ドキュメント検索）
+      - Memory（知識グラフ記憶）※既存
+
+      【調査対象】
+      - ~/.claude/skills/shogun-generated/ 配下のスキル
+      - ~/multi-agent-shogun/skills/ 配下のスキル
+
+      【判断基準】
+      - そのスキルの機能が上記MCPで賄えるなら → スキル廃止候補
+      - MCPでは賄えない独自機能なら → スキル存続
+
+      【アウトプット】
+      - 各スキルの一覧
+      - 代替可能なMCPの名前と理由、または存続理由
+      - dashboard.md に報告
+
+      ※ 最低優先度。cmd_002が完了してから着手せよ。
+
+  - id: cmd_004
+    timestamp: "2026-02-01T12:32:20"
+    command: "neo_shogi ROADMAP.md を未コミットソースに基づき更新せよ"
+    project: neo_shogi
     project_path: "/mnt/e/creative/program/neo_shogi"
+    priority: high
+    status: completed
+    details: |
+      neo_shogiプロジェクトの未コミットのソースコードを調査し、
+      既に実装済みの機能をROADMAP.mdに反映せよ。
+
+      【手順】
+      1. git status / git diff でコミット済み・未コミットの変更を把握
+      2. ソースコード全体を読み、実装済み機能を特定
+      3. ROADMAP.md を読み、未実装扱いになっている項目を確認
+      4. 実装済みの項目のステータスを更新（完了マーク等）
+      5. ROADMAP.md を直接編集して更新
+
+      【注意】
+      - ROADMAP.mdの構造・フォーマットは維持せよ
+      - 実装済みかどうかはソースコードの実態に基づいて判断せよ
+      - 不明な場合はdashboard.mdの要対応に記載して殿に確認を求めよ
+
+  - id: cmd_005
+    timestamp: "2026-02-01T13:03:24"
+    command: "WP系スキルの統合検討 — テーマ監査 vs 全体監査の2本立てに整理せよ"
+    project: multi-agent-shogun
+    priority: high
+    status: completed
+    details: |
+      殿の方針：WP系スキルを「テーマごとのauditor」と「全体のauditor」の
+      2つに集約できないか検討せよ。
+
+      【既存スキル】
+      - wp-theme-a11y-auditor（テーマ特化・アクセシビリティ深掘り）
+      - wp-theme-refactor-auditor（テーマ特化・コード品質深掘り）
+      - wordpress-full-auditor（サイト全体・広く浅い監査）※今回作成
+
+      【新規スキル化候補（未作成）】
+      - wp-security-hardener（.htaccess強化 + robots.txt）
+      - wp-font-loading-analyzer（フォント読み込み経路調査）
+      - webp-batch-converter（JPG/PNG一括WebP変換）
+      - git-project-auditor（git状態+ロードマップ乖離調査）
+
+      【殿の意図】
+      上記の既存3つ + 候補4つを、以下の2カテゴリに統合できるか比較・検討：
+        A) テーマ監査スキル（テーマ特化の深い調査を1つに）
+        B) サイト全体監査スキル（全方位の調査を1つに）
+
+      【アウトプット】
+      - 各スキル/候補の機能マトリクス（重複・補完関係）
+      - 2本立て統合案（どのスキルをどちらに統合するか）
+      - 統合困難なもの（単独維持すべきもの）があれば理由付きで報告
+      - dashboard.md の要対応セクションに結論を記載
+
+      【対応不要（殿の判断で除外済み）】
+      - W3 Total Cache → 殿が有効化済み。忘れよ。
+      - Acumin Pro フォント → 対応不要。忘れよ。
+
+      ※ cmd_003（MCP代替レビュー）は引き続き保留。着手するな。
+
+  - id: cmd_006
+    timestamp: "2026-02-01T13:18:28"
+    command: "WP系スキル5本立て承認 — 新規2スキル作成 + 既存1スキル微拡張を実行せよ"
+    project: multi-agent-shogun
+    priority: high
+    status: completed
+    details: |
+      殿より5本立て案を承認。統合は不要。以下をそのまま進めよ。
+
+      【維持（変更なし）】
+      1. wp-theme-a11y-auditor — 既存維持
+      2. wp-theme-refactor-auditor — 既存維持
+
+      【微拡張】
+      3. wordpress-full-auditor — Phase4にセキュリティ基礎+フォント調査項目を追加
+
+      【新規作成】
+      4. wp-security-hardener — .htaccess強化 + robots.txt一括適用
+      5. webp-migration-toolkit — batch-converter + picture-tag-converter 統合
+
+      【不採用（作成しない）】
+      - wp-font-loading-analyzer → wordpress-full-auditor Phase4に吸収
+      - git-project-auditor → WP非依存のため別枠保留
+
+      ※ cmd_003は引き続き保留。着手するな。
+
+  - id: cmd_007
+    timestamp: "2026-02-01T13:54:40"
+    command: "STS 画像解像度問題の調査 — 横幅1900px付近で画像が低解像度になる"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
     priority: high
     status: pending
     details: |
-      Phase 1（BE基盤5件 + FE基盤3件）の全成果物をgit commitせよ。
+      殿からの報告：
+      <picture>タグ実装後、横幅1900px付近のビューポートで
+      画像の解像度が低すぎる。原因を調査せよ。
 
-      【commit方針】
-      - neo_shogi プロジェクト（/mnt/e/creative/program/neo_shogi）でcommit
-      - commit message: "feat: add GUI foundation - Servant API + React frontend (Phase 1)"
-      - BE側: src/Shogi/Api.hs, JsonTypes.hs, Routes.hs, WebSocket.hs, AsyncAi.hs, package.yaml変更
-      - FE側: frontend/ ディレクトリ全体
-      - stack build成功・229テスト全合格を再確認してからcommit
-      - 軽微なtscエラー3件（未使用import）があれば修正してからcommit
+      【調査すべきポイント】
+      1. sts_picture_webp() ヘルパー関数の srcset 生成ロジック
+         - WPが生成するサムネイルサイズ一覧（add_image_size設定）
+         - srcset に含まれる画像サイズの最大値は何pxか
+         - 1900px幅のビューポートに対して十分な解像度の画像が提供されているか
+
+      2. sizes 属性の設定
+         - ブラウザが1900px幅でどのサイズの画像を選択するか
+         - sizes属性が適切に設定されているか
+
+      3. WordPressのメディア設定
+         - WPのmax_srcset_image_width（デフォルト2048px）
+         - アップロード画像の元サイズ（十分大きいか）
+         - WPが自動生成するサムネイルサイズの一覧
+
+      4. <source> タグの srcset
+         - WebP版の srcset にも十分なサイズが含まれているか
+         - 元画像(JPG)側の srcset との整合性
+
+      【アウトプット】
+      - 原因の特定と修正案
+      - dashboard.md の要対応セクションに報告
+
+  - id: cmd_008
+    timestamp: "2026-02-01T14:03:13"
+    command: "STS 画像解像度問題の修正 — 案2+4で実装せよ"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
+    priority: high
+    status: pending
+    details: |
+      殿より案2+4（推奨案）の実装を承認。
+
+      【案2: カスタムサイズ追加】
+      - add_image_size('sts-gallery', 2048, 2048, false) を追加
+      - STS_GALLERY_IMAGE_SIZE を 'sts-gallery' に変更
+
+      【案4: レンダラーごとにsizes指定】
+      - 各ギャラリーレンダラー（square/thumbnail/details/packshot）で
+        レイアウトに応じた適切なsizes属性を設定
+      - 例: 単一画像表示なら sizes="100vw"
+      - グリッド表示なら sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw" 等
+      - sts_picture_webp() にsizes引数を追加し、各レンダラーから渡す
 
       【注意】
-      - git add は具体的なファイル/ディレクトリを指定（git add -A 禁止）
-      - .env, node_modules, dist 等はcommitしないこと
-      - commit後、dashboard.md を更新せよ
+      - 既存の<picture>タグ実装（sts_picture_webp）を拡張する形で実装
+      - 既存のレスポンシブ動作を壊さないよう注意
+      - 実装後、dashboard.md に報告
 
-  - id: standing_order_001
-    timestamp: "2026-01-31T16:10:00"
-    command: "【永続厳命】dashboard.md更新と将軍への返信を徹底せよ"
+  - id: cmd_009
+    timestamp: "2026-02-01T14:18:49"
+    command: "MCP連携強化 — 3スキルにMCP活用手順を追加せよ"
     project: multi-agent-shogun
-    priority: critical
-    status: standing_order
+    priority: medium
+    status: completed
     details: |
-      ██████████████████████████████████████████████████████████████
-      █  殿より直々のお叱りである。以下を絶対に守れ。          █
-      ██████████████████████████████████████████████████████████████
+      cmd_003のレビュー結果で🟡部分代替と判定された3スキルについて、
+      MCP連携を強化せよ。各スキルのSKILL.mdに、MCPを活用する手順を追加する。
 
-      【厳命：永続的に適用】
+      【対象と連携内容】
+      1. vite-react-ts-scaffolder + Context7
+         - スキル実行時にContext7で最新Vite/React/TypeScriptドキュメントを取得
+         - テンプレート生成前に最新の推奨設定・破壊的変更を確認する手順を追加
 
-      家老は、いかなる作業の完了後も、以下の2つを必ず実行せよ。
-      これは全てのコマンド・全ての作業に対して例外なく適用される。
+      2. wordpress-full-auditor + Playwright
+         - Phase完了後にPlaywrightでフロントエンド表示を実際にブラウザ確認
+         - レスポンシブ表示・パフォーマンス計測の自動化手順を追加
 
-      ■ 1. dashboard.md の即時更新
-        - 足軽の報告を受け取ったら、その都度dashboard.mdを更新せよ
-        - 全足軽の完了を待たず、報告が来た時点で逐次更新せよ
-        - 「進行中」「完了済み」「要対応」の各セクションを正確に反映せよ
-        - 特に「🚨 要対応」セクションには殿の判断が必要な事項を漏れなく記載せよ
+      3. wp-shortcode-to-block-converter + Context7
+         - 変換作業前にContext7でBlock API/InnerBlocks等の最新仕様を取得
+         - 非推奨APIの回避・最新ベストプラクティスの確認手順を追加
 
-      ■ 2. 将軍への完了報告（send-keys）
-        - 全足軽の作業完了後、将軍ペイン（shogun:0）にsend-keysで報告せよ
-        - 報告フォーマット:
-          tmux send-keys -t shogun:0 "# 家老報告: [cmd_xxx] [作業内容] 完了。dashboard.md更新済み。" Enter
-        - 途中経過の報告も適宜行え
+      【実装方針】
+      - 各SKILL.mdの該当フェーズにMCP活用ステップを追記
+      - 「MCPが利用可能な場合」の条件付きステップとして記載
+        （MCP未導入環境でもスキルが動作するよう後方互換を維持）
 
-      ■ 違反した場合
-        - 殿が状況を把握できず、作業が滞る
-        - これは指揮系統の根幹に関わる問題である
-        - 二度と忘れるな
+      【アウトプット】
+      - 各SKILL.mdの変更箇所と追加行数
+      - dashboard.md に報告
 
-      この厳命はコンパクション後も有効である。
-      summaryに必ず含めよ：「standing_order_001: dashboard更新+将軍報告は必須」
+  - id: cmd_010
+    timestamp: "2026-02-01T14:23:01"
+    command: "STS 新規画像アップロード時のWebP自動化方策を調査・提案せよ"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
+    priority: high
+    status: completed
+    details: |
+      殿からの要件：
+      STSで新しいページを作成し画像をアップロードする際、
+      サイト管理者が簡単にWebP化できる仕組みが必要。
+
+      今回はcwebpでバッチ変換+pictureタグヘルパーを手動実装したが、
+      管理者（非エンジニア含む）が日常運用で無理なくWebP化できる方法を
+      調査・提案せよ。
+
+      【調査すべき方策】
+      1. WPプラグインによる自動変換
+         - アップロード時にフックしてWebPを自動生成するプラグイン
+         - 例: ShortPixel, Imagify, WebP Express, EWWW Image Optimizer 等
+         - 既存のsts_picture_webp()ヘルパーとの整合性
+         - 無料枠・費用・サーバー負荷
+
+      2. テーマ側のfunctions.phpでフック
+         - wp_handle_upload / wp_generate_attachment_metadata フック
+         - アップロード時にcwebpで自動変換するカスタムコード
+         - cwebpがサーバーにインストールされている前提の是非
+
+      3. サーバーサイドの仕組み
+         - .htaccessでmod_rewriteによる自動WebP配信
+         - CDN側でのWebP変換（Cloudflare等）
+
+      4. 運用フローの設計
+         - 管理者が画像をアップロードするだけでWebPが自動生成される理想形
+         - 既存のpictureタグ実装との連携（WebPファイルが存在すれば自動で使われる設計になっているか確認）
+
+      【アウトプット】
+      - 各方策のメリット・デメリット比較表
+      - STSの現状アーキテクチャに最も適した推奨案
+      - dashboard.md の要対応セクションに報告
+
+  - id: cmd_012
+    timestamp: "2026-02-01T14:47:34"
+    command: "STS ショートコードのFileBirdフォルダ指定をプルダウン選択式にする方法を調査せよ"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
+    priority: high
+    status: completed
+    details: |
+      殿からの要件：
+      現在 [show_details folder=20_MHO_mannequin] のように
+      FileBirdフォルダ名を直打ちで指定しているショートコードを、
+      プルダウン（ドロップダウン）で選択式にしたい。
+
+      【調査すべきポイント】
+      1. Gutenbergブロック化
+         - ショートコードをカスタムGutenbergブロックに変換し、
+           InspectorControls（サイドバー）にFileBirdフォルダの
+           プルダウン選択UIを実装する方法
+         - FileBirdのフォルダ一覧をREST APIまたはPHP関数で取得できるか
+         - 既存ショートコードとの後方互換性
+
+      2. ショートコードUIプラグイン
+         - Shortcake (Shortcode UI) 等のプラグインで
+           ショートコードにGUI入力フォームを追加する方法
+         - FileBirdフォルダ一覧をドロップダウンとして表示できるか
+
+      3. ACFとの連携
+         - ACFフィールドでFileBirdフォルダを選択させ、
+           テンプレート側でショートコードに渡す方法
+
+      4. STSの現状アーキテクチャとの整合
+         - 既存の5種ギャラリーショートコード全てに適用可能か
+         - show_details以外にもfolder引数を使うショートコードがあるか確認
+
+      【アウトプット】
+      - 各方法のメリット・デメリット比較
+      - STSに最適な推奨案
+      - dashboard.md の要対応セクションに報告
+
+  - id: cmd_013
+    timestamp: "2026-02-01T15:02:38"
+    command: "STS Gutenbergブロック拡張 — FileBirdフォルダプルダウン選択UI実装"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
+    priority: high
+    status: completed
+    details: |
+      殿よりcmd_012の方策A（既存Gutenbergブロック拡張）を承認。実装せよ。
+
+      【対象ブロック（3種）】
+      - blocks/show-square（show_square ショートコード）
+      - blocks/show-details（show_details ショートコード）
+      - blocks/show-packshots（show_packshots ショートコード）
+
+      ※ show_thumbnails（フォルダ固定）とshow_summary（FileBird不使用）は対象外
+
+      【実装内容】
+      1. 各ブロックの edit.js に InspectorControls を追加
+         - FileBird REST API（gutenberg-get-folders）でフォルダ一覧を取得
+         - SelectControl でプルダウン表示
+         - 選択されたフォルダ名をブロック属性（folder）に保存
+
+      2. block.json の attributes に folder を追加（既存の場合は確認のみ）
+
+      3. PHP側のrender_callback はショートコードと同じロジックを使うため、
+         folder属性がショートコードのfolder引数として渡るようにする
+
+      4. 既存ショートコードの後方互換性を維持
+         - 直打ちショートコード [show_details folder=xxx] も引き続き動作すること
+
+      【注意】
+      - STSのビルド環境（webpack）でJSをビルドする必要があるか確認
+      - FileBird APIの認証・権限を確認
+      - エディタプレビューでフォルダ内の画像が確認できると理想的（任意）
+
+      【アウトプット】
+      - 変更ファイル一覧と実装内容
+      - dashboard.md に報告
+
+  - id: cmd_014
+    timestamp: "2026-02-01T15:21:35"
+    command: "STS ACF作品情報管理の改善調査 — より堅牢・メンテナンスしやすい方法を提案せよ"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
+    priority: high
+    status: completed
+    details: |
+      殿からの要件：
+      現在ACFでメディアのサムネイル画像（attachment）に対して
+      作品情報（title, series, year, stakeholder, genre, goods_data等）を
+      載せている箇所について、より堅牢かつメンテナンスしやすい方法がないか調査せよ。
+
+      【現状の把握（cmd_001の資産評価より）】
+      - ACF構造: artwork(title/series/year/stakeholder/genre/goods_data) + exhibition(title/place/year)
+      - カスタム投稿タイプは未使用、ACF + FileBird + attachment で管理
+      - メディア（attachment）にACFフィールドを紐付けて作品情報を管理
+
+      【調査すべき代替案】
+      1. カスタム投稿タイプ（CPT）への移行
+         - 「artwork」CPTを作成し、ACFフィールドを紐付け
+         - アイキャッチ画像でメディアと紐付け
+         - メリット: WP標準のCRUD、一覧画面、検索、パーマリンク
+         - デメリット: 既存データの移行コスト
+
+      2. ACFの構造最適化（現行方式の改善）
+         - フィールドグループの整理・バリデーション強化
+         - Repeaterフィールドの活用
+         - ACF JSONでバージョン管理
+
+      3. カスタムテーブル方式
+         - ACF拡張やカスタムDBテーブルでの管理
+         - パフォーマンス面のメリット
+
+      4. メタデータの整合性確保
+         - 現在のattachmentメタデータの整合性問題があるか
+         - orphanデータ（画像削除時にACFデータが残る等）の有無
+
+      【アウトプット】
+      - 現状のACF実装の詳細分析（どのファイルでどう使われているか）
+      - 各代替案のメリット・デメリット・移行コスト
+      - 推奨案
+      - dashboard.md の要対応セクションに報告
+
+  - id: cmd_015
+    timestamp: "2026-02-01T15:25:54"
+    command: "dashboard.md 整理 — 不要な記述を削除せよ"
+    project: multi-agent-shogun
+    priority: high
+    status: completed
+    details: |
+      殿の指示により、dashboard.md を以下の通り整理せよ。
+
+      【削除対象】
+      1. cmd_010（WebP自動化方策）の記述を全て削除
+         - 要対応セクションの「STS WebP自動化方策」ブロック全体
+         - 完了済みコマンドセクションの cmd_010 テーブル
+         - 本日の戦果の cmd_010 関連行
+         - 理由: EWWW導入で全て完了済み
+
+      2. 打ち消し線（~~）で消されている項目を記述ごと削除
+         - ~~STS画像解像度問題~~ ✅ 案2+4実装完了
+         - ~~WP系スキル統合検討結果~~ ✅ 殿より5本立て承認済み
+         - ~~WebP配信設定~~ ✅ 実装完了
+         - ~~Acumin Pro フォント~~ 殿の判断で対応不要
+         - ~~W3 Total Cache~~ 殿が有効化済み
+         - その他、打ち消し線で消されている記述全て
+
+      【注意】
+      - 進行中・未完了の記述は削除するな
+      - 本日の戦果テーブルからcmd_010関連行のみ削除、他は残す
+
+  - id: cmd_016
+    timestamp: "2026-02-01T15:33:26"
+    command: "STS ACF構造最適化 + 整合性確保を実装せよ（案2+案4）"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
+    priority: high
+    status: completed
+    details: |
+      殿よりcmd_014の案2（ACF構造最適化）+ 案4（整合性確保）の併用を承認。実装せよ。
+
+      【案2: ACF構造最適化】
+      - acf-json/ ディレクトリを導入し、ACFフィールド定義をJSONでGit管理可能にする
+      - フィールドグループのバリデーション強化（required設定、入力規則等）
+      - フィールド定義の整理・ドキュメント化
+
+      【案4: 整合性確保】
+      - ACF未入力の画像を検出するツール/スクリプトの作成
+      - orphanデータ（画像削除後に残るACFデータ）の検出
+      - 整合性チェックを定期的に実行できる仕組み
+
+      【注意】
+      - 既存のデータを破壊しないこと
+      - 既存のショートコード・ギャラリー動作に影響しないこと
+      - スキル化候補 wp-acf-architecture-auditor については別途判断する
+
+      【アウトプット】
+      - 変更ファイル一覧と実装内容
+      - dashboard.md に報告
+
+  - id: cmd_017
+    timestamp: "2026-02-01T16:41:23"
+    command: "STS square-artwork-container のアスペクト比修正 — 縦長を正方形に"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
+    priority: high
+    status: completed
+    details: |
+      殿からの報告：
+      .square-artwork-container の表示が縦長に崩れている。
+      名前の通り正方形（1:1）であるべき。
+
+      【調査・修正】
+      1. globals.scss（またはビルド後のglobals.css）で
+         .square-artwork-container の現在のCSS定義を確認
+      2. 縦長になる原因を特定（aspect-ratio未設定、height固定、
+         画像のobject-fit設定、<picture>タグ導入の副作用等）
+      3. 正方形（1:1）になるようCSSを修正
+         - aspect-ratio: 1 / 1 の使用を推奨
+         - 内部の画像にobject-fit: cover を適用
+         - <picture>タグ内の<img>にも適切なスタイルが当たるか確認
+      4. レスポンシブでも正方形が維持されることを確認
+
+      【注意】
+      - 今回の<picture>タグ実装（cmd_008）の副作用の可能性がある
+        → sts_picture_webp()で<picture>タグに変更した際に
+        CSSセレクタが合わなくなった可能性を調査
+      - SCSSを修正した場合はwebpackビルドが必要
+
+      【アウトプット】
+      - 原因と修正内容
+      - dashboard.md に報告
+
+  - id: cmd_018
+    timestamp: "2026-02-01T16:51:58"
+    command: "STS PHPエラー修正 — blocks/show-details/build/index.asset.php が見つからない"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
+    priority: critical
+    status: completed
+    details: |
+      殿からのエラー報告（ページ上に表示されている）：
+
+      Warning: include(.../blocks/show-details/build/index.asset.php):
+      Failed to open stream: No such file or directory
+      in functions.php on line 283
+
+      Warning: Trying to access array offset on value of type bool
+      in functions.php on line 287, 288
+
+      【原因の推定】
+      cmd_013でGutenbergブロック拡張を実装した際に、
+      blocks/show-details/build/index.asset.php を参照するコードが
+      functions.phpに追加されたが、ビルドファイルが存在しない。
+
+      subtask_1301の報告で「環境問題発見: blocks/直下のファイルが消失するため、
+      block.json/render.php方式を断念しfunctions.php直接登録方式を採用」とあったが、
+      index.asset.phpへの参照が残っている可能性がある。
+
+      【修正方針】
+      1. functions.php 283行目付近を確認
+      2. index.asset.phpが不要なら参照を削除
+      3. 必要なら適切なフォールバック（file_exists チェック）を追加
+      4. 他のブロック（show-square, show-packshots）にも同じ問題がないか確認
+      5. エラーが出なくなることを確認
+
+      【至急対応】これはページ表示に影響するエラーである。最優先で修正せよ。
+
+  - id: cmd_019
+    timestamp: "2026-02-01T17:07:39"
+    command: "STS Gutenbergブロックがブロックインサーターに表示されない問題の調査・修正"
+    project: STS
+    project_path: "/mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji"
+    priority: critical
+    status: pending
+    details: |
+      殿からの報告（スクリーンショット確認済み）：
+      エディタの左サイドバー（ブロックインサーター）に
+      STSのカスタムブロック（show-details, show-square, show-packshots）が
+      独立したブロックとして表示されていない。
+
+      現在はショートコードブロックとして [show_details folder=xxx] を
+      手書きしている状態。cmd_013で実装したプルダウン付きブロックが
+      インサーターに出てこなければ意味がない。
+
+      【殿の期待】
+      - ブロックインサーターに「Show Details」「Show Square」「Show Packshots」が
+        アイコン付きで表示される
+      - それを選択するとエディタに挿入され、
+        サイドバー（InspectorControls）にFileBirdフォルダのプルダウンが出る
+      - プルダウンでフォルダを選ぶだけで設定完了
+
+      【調査ポイント】
+      1. ブロック登録（register_block_type / registerBlockType）が正しく行われているか
+      2. subtask_1301で「blocks/直下のファイルが消失する」問題があったが、
+         ビルド済みJSファイル（edit.js → build/index.js）が存在するか
+      3. wp_register_script でブロックのエディタスクリプトが正しくエンキューされているか
+      4. block.jsonが存在するか、またはPHP側でregister_block_typeが呼ばれているか
+      5. Local by Flywheelの環境問題で消失したファイルがあれば復旧
+
+      【修正方針】
+      - ブロックインサーターにカスタムブロックが表示され、
+        プルダウンでフォルダ選択できるところまで完成させよ
+      - webpackビルドが必要ならビルド手順も報告せよ
+
+      【アウトプット】
+      - 原因と修正内容
+      - ブロック動作確認手順
+      - dashboard.md に報告

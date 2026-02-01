@@ -1,111 +1,205 @@
 # 📊 戦況報告
-最終更新: 2026-01-31 16:46
+最終更新: 2026-02-01 16:34
 
 ## 🚨 要対応 - 殿のご判断をお待ちしております
 
-### スキル化候補 5件【承認待ち】
-cmd_030 Phase 1で検出。承認いただければスキル設計書を作成する。
-| スキル名 | 提案者 | 概要 |
-|----------|--------|------|
-| async-task-wrapper | 足軽3号 | IO処理の非同期化+タイムアウト+進捗ポーリング汎用ラッパー |
-| haskell-websocket-module-generator | 足軽7号 | WebSocket通信モジュール雛形生成（STM+pub/sub+JSON） |
-| react-shogi-component-generator | 足軽6号 | 将棋UIのReactコンポーネント生成（Props型→JSX→CSS→ARIA） |
-| vite-react-ts-scaffolder | 足軽5号 | Vite+React+TSプロジェクト初期構築+API層テンプレート |
-| haskell-game-api-extractor | 足軽1号 | CLIゲームからCLI依存を分離しAPI層を抽出 |
-
-### cmd_030 次フェーズ【指示待ち】
-- Phase 1 commit済み（2bb2117）。Phase 3（統合・仕上げ）に進むか？
-- 残課題: ハンドラスタブ実装、FE型定義統合、コンポーネント統合テスト
+なし
 
 ## 🔄 進行中 - 只今、戦闘中でござる
 
-なし（全足軽8名アイドル）
+なし
+
+
+
+## ✅ 完了済みコマンド
+
+### cmd_018: PHPエラー修正 — index.asset.php不在 ✅ 完了（殿の目視確認待ち）
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽1 | subtask_1801 | file_existsガード追加（3ブロック） | ✅ 完了 |
+
+### cmd_017: square-artwork-container アスペクト比修正 ✅ 完了（殿の目視確認待ち）
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽1 | subtask_1701 | SCSS修正（aspect-ratio:1/1+object-fit:cover+picture block化） | ✅ 完了 |
+
+### cmd_016: ACF構造最適化+整合性確保 ✅ 全完了
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽2 | subtask_1601 | acf-json/準備+整合性チェックツール作成（248行） | ✅ 完了 |
+| 足軽2 | subtask_1602 | functions.phpにACF JSONフィルター+require追加（+11行） | ✅ 完了 |
+
+### cmd_013: Gutenbergブロック拡張 — FileBirdフォルダプルダウンUI ✅ 全完了
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽1 | subtask_1301 | 構造調査+show-details参照実装 | ✅ 完了 |
+| 足軽1 | subtask_1302 | show-square+show-packshots実装（2ブロック一括） | ✅ 完了 |
+
+### cmd_014: ACF作品情報管理の改善調査 ✅ 完了（殿の判断待ち）
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽2 | subtask_1401 | ACF実装詳細分析+4代替案比較+推奨案 | ✅ 完了（推奨: ACF最適化+整合性確保併用） |
+
+### cmd_012: FileBirdフォルダ指定プルダウン化調査 ✅ 完了（殿の判断待ち）
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽1 | subtask_1201 | 4方策調査+比較表+推奨案策定 | ✅ 完了（推奨: 既存Gutenbergブロック拡張） |
+
+### cmd_009: MCP連携強化 — 3スキルにMCP活用手順追加 ✅ 全完了
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽1 | subtask_901 | vite-react-ts-scaffolder + Context7 | ✅ 完了（+17行） |
+| 足軽2 | subtask_902 | wordpress-full-auditor + Playwright | ✅ 完了（+17行、821→838行） |
+| 足軽3 | subtask_903 | wp-shortcode-to-block-converter + Context7 | ✅ 完了（+15行） |
+
+### cmd_008: 画像解像度問題修正（案2+4実装）✅ 完了
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽4 | subtask_801 | functions.php — add_image_size('sts-gallery', 2048) + 定数変更 | ✅ 完了 |
+| 足軽5 | subtask_802 | shortcodes.php — sts_picture_webp() sizes対応 + 4レンダラー修正 | ✅ 完了（CSS実測に基づくsizes最適化） |
+
+### cmd_007: STS画像解像度問題調査 ✅ 原因特定完了
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽4 | subtask_701 | 横幅1900px付近で低解像度になる原因調査 | ✅ 完了（sizes属性1024pxキャップが原因） |
+
+### cmd_006: WP系スキル5本立て実行 ✅ 全完了
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽1 | subtask_601 | wordpress-full-auditor Phase4 微拡張（セキュリティ基礎+フォント調査追加） | ✅ 完了（772→820行） |
+| 足軽2 | subtask_602 | wp-security-hardener SKILL.md 新規作成 | ✅ 完了（486行） |
+| 足軽3 | subtask_603 | webp-migration-toolkit SKILL.md 新規作成 | ✅ 完了（523行） |
+
+### cmd_003: 既存スキルのMCP代替可能性レビュー ✅ 完了
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽6 | subtask_301 | 前半17件（skills/ A-P） | ✅ 完了（全17件🟢存続） |
+| 足軽7 | subtask_302 | 後半21件（skills/ P-Z + shogun-generated/） | ✅ 完了（🔴0件 🟡3件 🟢18件） |
+
+### cmd_005: WP系スキル統合検討 ✅ 完了
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽1 | subtask_501 | 機能マトリクス+統合案策定 | ✅ 完了（5本立て推奨→殿承認） |
+
+### cmd_004: neo_shogi ROADMAP.md 更新 ✅ 完了
+| 足軽 | タスクID | 内容 | 状態 |
+|------|----------|------|------|
+| 足軽1 | subtask_401 | git調査 + プロジェクト構造 + ROADMAP.md読み取り | ✅ 完了 |
+| 足軽2 | subtask_402 | ソースコード全量読み取り + 実装済み機能特定 | ✅ 完了 |
+| 足軽3 | subtask_403 | ROADMAP.md 編集（6項目ステータス更新） | ✅ 完了 |
+
+### cmd_002: wordpress-full-auditor スキル作成 + STS改善実行 ✅ 完了
+| 足軽 | タスクID | 内容 | 優先度 | 状態 |
+|------|----------|------|--------|------|
+| 足軽1 | subtask_201 | wordpress-full-auditor スキル作成 | — | ✅ 完了 |
+| 足軽2 | subtask_202 | WebP変換導入（JPG/PNG 4,585件） | 🔴 高 | ✅ 完了 |
+| 足軽3 | subtask_203 | Schema.org重複出力の解消 | 🔴 高 | ✅ 完了 |
+| 足軽4 | subtask_204 | popup aria-hidden/aria-expanded 追加 | 🟡 中 | ✅ 完了 |
+| 足軽5 | subtask_205 | W3TC設定 + .htaccess強化 + robots.txt | 🟡中+🟢低 | ✅ 完了 |
+| 足軽6 | subtask_206 | フォント読み込み + favicon確認（調査のみ） | 🟡中+🟢低 | ✅ 完了 |
+| 足軽4 | subtask_202b | WebP `<picture>` タグ配信実装（4箇所） | 🔴 高 | ✅ 完了 |
 
 ## ⏸️ 待機中
 
 なし
 
-## ✅ 完了済みコマンド一覧
+## ✅ 本日の戦果
+| 時刻 | 戦場 | 任務 | 結果 |
+|------|------|------|------|
+| 11:41 | STS | subtask_104: 技術的健全性調査 | ✅ 完了 |
+| 11:42 | STS | subtask_105: SEO・アクセシビリティ調査 | ✅ 完了 |
+| 11:42 | STS | subtask_103: コンテンツ資産調査 | ✅ 完了 |
+| 11:42 | STS | subtask_101: サイト構成全体像調査 | ✅ 完了 |
+| 11:44 | STS | subtask_102: デザイン・フロントエンド調査 | ✅ 完了 |
+| 12:08 | STS | subtask_204: popup a11y修正 | ✅ aria属性+フォーカストラップ |
+| 12:08 | STS | subtask_205: W3TC+.htaccess+robots.txt | ✅ セキュリティ強化+robots.txt |
+| 12:10 | STS | subtask_203: Schema.org重複解消 | ✅ AIOSEO有効時テーマ側抑制 |
+| 12:10 | system | subtask_201: wordpress-full-auditor | ✅ スキルSKILL.md作成完了 |
+| 12:09 | STS | subtask_206: フォント+favicon調査 | ✅ ZenKaku=Olympus経由、AcuminPro=要DB確認 |
+| 12:28 | STS | subtask_202: WebPバッチ変換 | ✅ 4,585件変換、削減率55.9%（388.6→171.5MB） |
+| 12:37 | neo_shogi | subtask_401: git調査+ROADMAP読取 | ✅ 実装済み3項目+部分実装3項目発見 |
+| 12:40 | neo_shogi | subtask_402: ソースコード全量解析 | ✅ 11,429行解析、機能マッピング完了 |
+| 12:52 | neo_shogi | subtask_403: ROADMAP.md更新 | ✅ 6項目ステータス更新 |
+| 12:53 | STS | subtask_202b: WebP pictureタグ実装 | ✅ ヘルパー関数+4箇所置換+srcset対応 |
+| 13:09 | system | subtask_501: WP系スキル統合検討 | ✅ 5本立て推奨（2本立ては500行超過で非現実的） |
+| 13:20 | system | cmd_006開始 | 🔄 3足軽出陣（subtask_601/602/603） |
+| 13:57 | system | subtask_603: webp-migration-toolkit | ✅ SKILL.md新規作成完了（523行・5Phase・cwebpインストール手順付き） |
+| 13:58 | STS | subtask_701: 画像解像度問題調査 | ✅ 原因特定（sizes属性1024pxキャップ）修正案4つ提示 |
+| 14:08 | system | cmd_003開始 | 🔄 2足軽出陣（subtask_301/302・MCP代替レビュー） |
+| 14:08 | STS | subtask_801: functions.php変更 | ✅ add_image_size('sts-gallery', 2048) + 定数変更 |
+| 14:09 | system | subtask_601: wordpress-full-auditor微拡張 | ✅ Phase4にセキュリティ4項目+フォント調査4f追加（772→820行） |
+| 14:09 | STS | subtask_802: shortcodes.php sizes修正 | ✅ CSS実測sizes+4レンダラー最適化（1900px→2048w選択可能に） |
+| 14:11 | system | subtask_301: MCP代替レビュー前半 | ✅ 17件全て🟢存続（Haskell/将棋ドメイン固有） |
+| 14:10 | system | subtask_302: MCP代替レビュー後半 | ✅ 21件（🔴0 🟡3 🟢18）廃止候補なし |
+| 14:12 | system | subtask_602: wp-security-hardener | ✅ SKILL.md新規作成完了（486行・3Phase・冪等性設計） |
+| 14:19 | system | cmd_009開始 | 🔄 3足軽出陣（subtask_901/902/903・MCP連携強化） |
+| 14:21 | system | subtask_901: vite+Context7連携 | ✅ +17行（330→347行） |
+| 14:21 | system | subtask_903: wp-shortcode+Context7連携 | ✅ +15行（573→588行） |
+| 14:22 | system | subtask_902: auditor+Playwright連携 | ✅ +17行（821→838行）cmd_009全完了 |
+| 14:48 | STS | cmd_012開始 | 🔄 1足軽出陣（subtask_1201・FileBirdプルダウン化調査） |
+| 14:57 | STS | subtask_1201: FileBirdプルダウン化調査 | ✅ 4方策比較完了。推奨: 既存Gutenbergブロック拡張。FileBird APIあり。Shortcakeはメンテ停止で不適 |
+| 15:03 | STS | cmd_013開始 | 🔄 足軽1号出陣（subtask_1301・構造調査+show-details実装） |
+| 15:22 | STS | cmd_014開始 | 🔄 足軽2号出陣（subtask_1401・ACF作品情報改善調査） |
+| 15:26 | STS | subtask_1401: ACF改善調査 | ✅ 4代替案比較完了。推奨: ACF最適化+整合性確保。スキル化候補: wp-acf-architecture-auditor |
+| 15:32 | STS | subtask_1301: ブロック構造調査+show-details実装 | ✅ FileBirdプルダウン実装。環境問題発見→functions.php直接登録方式に切替 |
+| 15:34 | STS | cmd_013 Phase2+cmd_016開始 | 🔄 2足軽並列出陣（1302: show-square+packshots / 1601: ACF整合性ツール） |
+| 16:12 | STS | subtask_1601: ACF整合性ツール | ✅ inc/acf-integrity.php新規作成（248行）+acf-json/.gitkeep。RACE-001遵守 |
+| 16:20 | STS | subtask_1302: show-square+packshots | ✅ 2ブロックプルダウンUI実装。ビルド永続化確認済み。cmd_013全完了 |
+| 16:21 | STS | subtask_1602出陣 | 🔄 functions.phpにACF JSONフィルター追加（ロック解除） |
+| 16:34 | STS | subtask_1602: ACF JSONフィルター追加 | ✅ +11行（421→432行）既存コード無傷。cmd_016全完了 |
+| 16:42 | STS | cmd_017開始 | 🔄 足軽1号出陣（subtask_1701・square-artwork-container修正） |
+| 16:45 | STS | subtask_1701: square-artwork-container修正 | ✅ aspect-ratio:1/1+object-fit:cover+picture block化。殿の目視確認待ち |
+| 16:52 | STS | cmd_018開始 | 🔄 足軽1号出陣（subtask_1801・PHPエラー修正・緊急） |
+| 16:53 | STS | subtask_1801: PHPエラー修正 | ✅ file_existsガード3ブロック適用。殿のページ再読込確認待ち |
 
-### haskell-shogi-engine（/mnt/e/creative/program/neo_shogi）
+## 📋 cmd_003 総括: MCP代替可能性レビュー
 
-| cmd | 内容 | commits | テスト |
-|-----|------|---------|--------|
-| cmd_019 | Phase B Wave 1 統合（V2型システム等8ファイル統合） | 6a32d08 (+1110/-24) | 107件合格 |
-| cmd_021 | Mini Shogi現状調査（GAP/TUNE項目特定） | - | - |
-| cmd_022 Wave 1 | Mini Shogiテスト充実（7テストスイート、114テスト追加） | ※cmd_025に含む | 229件合格 |
-| cmd_022 Wave 2 | 評価関数チューニング（MoveOrdering, MiniShogiEval, kingSafety） | 270a180 (+395/-3) | 229件合格 |
-| cmd_022 Wave 3 | Mini Shogi YAML駒定義（config/pieces/mini_shogi.yaml） | 6c66506 (+215) | 229件合格 |
-| cmd_023 | Undo/Redo + 棋譜リプレイ + KIF/CSAエクスポート | 90b9d76 (+585/-24) | 229件合格 |
-| cmd_024 | GUI化タスクリスト調査（cmd_030として登録済み） | - | - |
-| cmd_025 | 大規模リファクタリング（デッドモジュール6件削除、型安全性修正） | 64cdc52 (+46/-346) | 229件合格 |
-| cmd_027 | 標準将棋駒SVG 28枚作成（先手14+後手14） | - | - |
-| cmd_028 | Wave 2+cmd_023並列実行 + shogi-piece-svg-generatorスキル | ※個別commitに分割済 | 229件合格 |
-| - | package.yaml モジュール追加 | 0dfd662 (+5) | - |
-| cmd_030 Phase 1 | GUI基盤（Servant API 5モジュール + React frontend 28ファイル） | 2bb2117 (+6457) | 229件合格 |
+**対象**: 38件（skills/ 33件 + shogun-generated/ 5件）
+**結果**: 🔴廃止候補 0件 / 🟡部分代替 3件 / 🟢存続 35件
 
-**現在のneo_shogi状態**: main ブランチ、229テスト全合格、working tree clean
+### 🟡 部分代替（廃止ではなくMCP連携強化を推奨）
+| スキル名 | 補助可能なMCP | 備考 |
+|----------|-------------|------|
+| vite-react-ts-scaffolder | Context7 | 最新Vite/Reactドキュメント取得で補助。5フェーズ生成パイプラインは独自 |
+| wordpress-full-auditor | Playwright | フロントエンド表示確認で補助。6フェーズ体系監査手順は独自 |
+| wp-shortcode-to-block-converter | Context7 | Block API最新仕様確認で補助。後方互換設計・SSR設計は独自 |
 
-### studiotatsuroshoji（STS WordPressテーマ）
+### 結論
+MCPは汎用ツール、スキルはドメイン固有の手順書。**競合関係ではなく相補関係**にある。廃止すべきスキルはなし。
 
-| cmd | 内容 | commit |
-|-----|------|--------|
-| cmd_029 | STSテーマ改善 全10件（N+1修正、a11y、SCSS改善、Schema.org、型ヒント等） | 2e02fbd（殿が実施） |
+## 🎯 スキル整理方針（cmd_005 結論 → cmd_006 で実行中）
 
-### multi-agent-shogun（管理リポジトリ）
+### 新規作成中
+| スキル名 | 性質 | 概要 | 状態 |
+|----------|------|------|------|
+| wp-security-hardener | 実行型 | .htaccess強化+robots.txt整備。調査→確認→実行の3ステップ | ✅ 完了（486行） |
+| webp-migration-toolkit | 実行型 | WebPバッチ変換＋`<picture>`タグ対応を一貫工程で実行 | ✅ 完了（523行） |
 
-| cmd | 内容 |
-|-----|------|
-| cmd_026 | スキル7件作成（Haskell系5件 + GUI系2件） |
-| cmd_031 | スキル4件作成（WP系2件 + 汎用2件） |
+### 既存スキル微拡張中
+| スキル名 | 変更内容 | 状態 |
+|----------|----------|------|
+| wordpress-full-auditor | Phase4にセキュリティ基礎チェック+フォント読込調査項目を追加（+48行） | ✅ 完了（820行） |
 
-## 🛠️ 生成されたスキル（全12件）
+### 別枠保留
+- git-project-auditor — WP非依存。別途検討
 
-| # | スキル名 | 分類 | 概要 |
-|---|----------|------|------|
-| 1 | haskell-variant-auditor | Haskell | バリアント調査自動化 |
-| 2 | haskell-eval-tuning-analyzer | Haskell | 評価関数チューニング分析 |
-| 3 | haskell-gui-backend-planner | Haskell | GUI化バックエンドタスク分析 |
-| 4 | haskell-module-analyzer | Haskell | モジュール構造・依存関係分析 |
-| 5 | gui-task-investigator | GUI | フロントエンドタスクリストアップ |
-| 6 | haskell-dead-code-analyzer | Haskell | デッドコード・undefined検出 |
-| 7 | hspec-shogi-board-builder | Haskell | テスト用盤面構築DSL |
-| 8 | shogi-piece-svg-generator | 将棋 | 駒SVGファイル一括生成 |
-| 9 | wp-shortcode-factory-refactor | WordPress | ショートコードfactory化リファクタリング |
-| 10 | wp-theme-a11y-auditor | WordPress | ブロックテーマa11y監査 |
-| 11 | kifu-format-exporter | 将棋 | KIF/CSA棋譜エクスポート |
-| 12 | php-type-hint-docblock-adder | PHP | 型ヒント+DocBlock自動追加 |
+## 🛠️ 生成されたスキル
 
-## ✅ 本日の戦果（サマリ）
+### wordpress-full-auditor ✅（微拡張済み）
+- **場所**: skills/wordpress-full-auditor/SKILL.md（820行）
+- **概要**: WordPressサイトの全方位監査スキル（6フェーズ）
+- **微拡張**: Phase4にセキュリティ基礎4項目+フォント調査セクション4fを追加
+- **棲み分け**: 既存 wp-theme-a11y-auditor（深いA11Y）、wp-theme-refactor-auditor（深いコード品質）を補完する「広く浅い」全体像把握用スキル
 
-### cmd_029 STSテーマ改善（10:04〜10:19）
-5名の足軽を3 Batchに分けて投入。RACE-001対策でファイル所有権を分離。
-- **Batch 1**（並列3名）: ショートコードfactory化+N+1修正 / a11y 10件 / SCSS CSS Custom Properties化
-- **Batch 2**（足軽2）: キーボードnav + PHP定数 + Schema.org + レスポンシブ画像
-- **Batch 3**（足軽8）: PHP型ヒント + DocBlock + typo修正
+### wp-security-hardener ✅ NEW
+- **場所**: skills/wp-security-hardener/SKILL.md（486行）
+- **概要**: WordPress基本セキュリティ強化の実行型スキル（3フェーズ: 調査→確認→実行）
+- **特徴**: Apache 2.2/2.4両対応、冪等性設計（マーカーで重複防止）、SiteGuard共存、バックアップ自動作成
 
-### cmd_030 GUI化 Phase 1（15:10〜16:46）
-全足軽8名を一斉投入。RACE-001対策でpackage.yamlは足軽4号が唯一の編集者。
-- **BE側（足軽1,2,3,4,7）**: Api.hs + JsonTypes.hs + AsyncAi.hs + Routes.hs + WebSocket.hs + package.yaml
-- **FE側（足軽5,6,8）**: Vite+React+TS scaffold + API層 + Board/HandPanel/DragDrop/KifuPanel/PromotionDialog
-- stack build成功・229テスト全合格・tsc --noEmit成功・frontend dev server起動確認
-- tscエラー3件修正（verbatimModuleSyntax対応）→ commit 2bb2117（34ファイル、+6457行）
-- スキル化候補5件: async-task-wrapper, haskell-websocket-module-generator, react-shogi-component-generator, vite-react-ts-scaffolder, haskell-game-api-extractor
-
-### cmd_031 スキル4件 + Wave 3（14:42〜14:49）
-3名の足軽を並列投入。
-- **足軽1**: WP系スキル2件作成
-- **足軽2**: 汎用スキル2件作成
-- **足軽7**: GAP-F01 YAML駒定義 + gitコミット4件（270a180, 90b9d76, 6c66506, 0dfd662）
-
-### 以前の戦果（08:55〜09:35）
-- cmd_019 Phase B統合（commit 6a32d08）
-- cmd_021 Mini Shogi調査（GAP 7件 + TUNE 6件特定）
-- cmd_022 Wave 1 テスト114件追加（229件到達）
-- cmd_024 GUI化タスクリスト（バックエンド11+フロントエンド22タスク）
-- cmd_025 大規模リファクタリング（commit 64cdc52、346行削減）
-- cmd_026 スキル7件作成
-- cmd_027 駒SVG 28枚作成
+### webp-migration-toolkit ✅ NEW
+- **場所**: skills/webp-migration-toolkit/SKILL.md（523行）
+- **概要**: WordPress画像WebP一括移行の実行型スキル（5フェーズ: 調査→確認→変換→テンプレート対応→検証）
+- **特徴**: cwebpバッチ変換+`<picture>`タグヘルパー関数生成、レスポンシブsrcset対応、PNGアルファ保持
 
 ## ❓ 伺い事項
 なし
