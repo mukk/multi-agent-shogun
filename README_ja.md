@@ -4,7 +4,7 @@
 
 **Claude Code マルチエージェント統率システム**
 
-*コマンド1つで、8体のAIエージェントが並列稼働*
+*コマンド1つで、10体のAIエージェント（将軍1+家老1+足軽8）が並列稼働*
 
 **Talk Coding — Vibe Codingではなく、スマホに話すだけでAIが実行**
 
@@ -664,7 +664,7 @@ bash scripts/ntfy_listener.sh
 - 家老がタスク割当・完了時に自動更新
 - 9ペインを一目見れば、誰が何をしているか即座にわかる
 
-### 🔊 10. シャウトモード（戦国エコー）
+### 🔊 9. シャウトモード（戦国エコー）
 
 足軽がタスクを完了すると、パーソナライズされた戦国風の叫びをtmuxペインに表示します — 部下が働いている実感を得られる。
 
@@ -697,41 +697,6 @@ task:
 ```
 
 サイレントモードは `DISPLAY_MODE=silent` をtmux環境変数に設定。家老がタスクYAML作成時にこれを確認し、`echo_message` フィールドを省略する。
-
-### 📝 9. Content Feedback System — 継続的スキル改善
-
-（削除済み）
-
-**永遠に回り続ける正のフィードバックループ:**
-
-```
-Zenn記事公開 → X投稿 → 読者の反応
-     ↑                        ↓
-     │                   X APIフィードバック収集
-     │                        ↓
-     │                   AI分類（記事反応 vs ポスト反応）
-     │                        ↓
-     │                   4人のExpert Panel議論
-     │                        ↓
-     │                   スキル改善（Git管理）
-     │                        ↓
-     └───── 次の記事は改善されたスキルで執筆 ←┘
-```
-
-**Expert Panel:**
-- 📊 ソーシャルマーケティングのプロ: CTR、シェア動機、タイトルの引力
-- ✍️ 世界一のテックブロガー: 構成、技術解説の深さと分かりやすさのバランス
-- 🧠 読者心理の専門家: 共感トリガー、認知バイアス活用、離脱ポイント
-- 🎭 お笑い構成作家（漫才スタイル）: ボケの切れ味、タイトルの遊び、緊張と緩和のリズム
-
-**仕組み:**
-1. X APIでZenn記事投稿へのリプライ・引用RTを取得
-2. AI分類: 記事フィードバック vs ポストコメント（記事フィードバックのみをスキル改善に使用）
-3. 4人の専門家が独立分析 → クロスディスカッション
-4. 合意（3/4または4/4）→ スキル更新 + Git commit/push
-5. 次のZenn記事は自動的に改善されたスキルで執筆
-
-**コスト:** 月額約$100（X API Basic プラン）で無制限の継続改善
 
 ---
 
@@ -1147,6 +1112,9 @@ ntfy_topic: "shogun-yourname"
 ./shutsujin_departure.sh -t
 ./shutsujin_departure.sh --terminal
 
+# 将軍中継専用モード: 将軍のThinkingを無効化（コスト節約）
+./shutsujin_departure.sh --shogun-no-thinking
+
 # ヘルプを表示
 ./shutsujin_departure.sh -h
 ./shutsujin_departure.sh --help
@@ -1190,6 +1158,7 @@ tmux kill-session -t multiagent
 `first_setup.sh` を実行すると、以下のエイリアスが `~/.bashrc` に自動追加されます：
 
 ```bash
+alias csst='cd /mnt/c/tools/multi-agent-shogun && ./shutsujin_departure.sh'
 alias css='tmux attach-session -t shogun'      # 将軍ウィンドウの起動
 alias csm='tmux attach-session -t multiagent'  # 家老・足軽ウィンドウの起動
 ```

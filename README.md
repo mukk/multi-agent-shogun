@@ -4,7 +4,7 @@
 
 **Command your AI army like a feudal warlord.**
 
-Run 8 Claude Code agents in parallel — orchestrated through a samurai-inspired hierarchy with zero coordination overhead.
+Run 10 Claude Code agents in parallel (1 Shogun + 1 Karo + 8 workers) — orchestrated through a samurai-inspired hierarchy with zero coordination overhead.
 
 **Talk Coding, not Vibe Coding. Speak to your phone, AI executes.**
 
@@ -687,7 +687,7 @@ Each tmux pane shows the agent's current task directly on its border:
 - Updated automatically by the Karo when assigning or completing tasks
 - Glance at all 9 panes to instantly know who's doing what
 
-### 🔊 10. Shout Mode (Battle Cries)
+### 🔊 9. Shout Mode (Battle Cries)
 
 When an Ashigaru completes a task, it shouts a personalized battle cry in the tmux pane — a visual reminder that your army is working hard.
 
@@ -720,41 +720,6 @@ task:
 ```
 
 Silent mode sets `DISPLAY_MODE=silent` as a tmux environment variable. The Karo checks this when writing task YAMLs and omits the `echo_message` field.
-
-### 📝 9. Content Feedback System — Continuous Skill Improvement
-
-（removed）
-
-**Eternal positive feedback loop:**
-
-```
-Zenn article published → X post → Reader reactions
-     ↑                                    ↓
-     │                           X API feedback collection
-     │                                    ↓
-     │                           AI classification (article vs post)
-     │                                    ↓
-     │                           4-person Expert Panel discussion
-     │                                    ↓
-     │                           skill improvement (Git managed)
-     │                                    ↓
-     └───── Next article written with improved skills ←┘
-```
-
-**Expert Panel:**
-- 📊 Social Marketing Pro: CTR, share motivation, title magnetism
-- ✍️ World's Best Tech Blogger: structure, technical depth vs readability balance
-- 🧠 Reader Psychology Expert: empathy triggers, cognitive biases, drop-off points
-- 🎭 Comedy Writer (Manzai style): punchline sharpness, title wordplay, tension/release rhythm
-
-**How it works:**
-1. X API fetches replies & quote tweets on your Zenn article posts
-2. AI classifies: article feedback vs post comment (only article feedback used for skill improvement)
-3. 4 experts analyze independently, then cross-discuss
-4. Consensus (3/4 or 4/4) → auto-update `SKILL.md` + Git commit/push
-5. Next Zenn article uses improved skills automatically
-
-**Cost:** ~$100/month (X API Basic plan) for unlimited continuous improvement
 
 ---
 
@@ -1170,6 +1135,9 @@ Subscribe to the same topic in the [ntfy app](https://ntfy.sh) on your phone. Th
 # Full startup + open Windows Terminal tabs
 ./shutsujin_departure.sh -t
 ./shutsujin_departure.sh --terminal
+
+# Shogun relay-only mode: Disable Shogun's thinking (cost savings)
+./shutsujin_departure.sh --shogun-no-thinking
 
 # Show help
 ./shutsujin_departure.sh -h
