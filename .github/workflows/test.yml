@@ -4,7 +4,10 @@ on:
   push:
     branches:
       - main
+<<<<<<< HEAD
       - 'feature/**'  # feature/で始まる全ブランチ
+=======
+>>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
   pull_request:
 
 jobs:
@@ -18,7 +21,11 @@ jobs:
 
       - name: Install bats-core
         run: |
+<<<<<<< HEAD
           sudo npm install -g bats
+=======
+          npm install -g bats
+>>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
 
       - name: Setup bats helpers
         run: |
@@ -31,6 +38,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y python3-yaml
 
+<<<<<<< HEAD
       - name: Run root-level tests (except agent_selfwatch)
         run: |
           ROOT_TESTS=$(ls tests/*.bats 2>/dev/null | grep -v 'tests/agent_selfwatch.bats' || true)
@@ -51,6 +59,16 @@ jobs:
             exit 1
           }
 
+=======
+      - name: Run root-level tests (inbox_write.sh etc.)
+        run: |
+          if ls tests/*.bats 1>/dev/null 2>&1; then
+            bats tests/*.bats --timing
+          else
+            echo "::warning::No root-level test files found"
+          fi
+
+>>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
       - name: Run unit tests
         run: |
           if [ ! -d tests/unit ]; then
@@ -62,12 +80,17 @@ jobs:
             exit 1
           }
 
+<<<<<<< HEAD
       - name: Verify zero unexpected SKIPs (SKIP=FAIL policy)
+=======
+      - name: Verify zero SKIPs (SKIP=FAIL policy)
+>>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
         run: |
           SKIP_COUNT=0
           for f in tests/*.bats tests/unit/*.bats; do
             [ -f "$f" ] || continue
             RESULT=$(bats "$f" --tap 2>/dev/null || true)
+<<<<<<< HEAD
             # Count skips, excluding known CI-environment skips (e.g. "claude not installed")
             COUNT=$(echo "$RESULT" | grep "^ok.*# skip" | grep -cv "CI environment" || true)
             SKIP_COUNT=$((SKIP_COUNT + COUNT))
@@ -77,6 +100,16 @@ jobs:
             exit 1
           fi
           echo "All tests executed (0 unexpected skips)"
+=======
+            COUNT=$(echo "$RESULT" | grep -c "^ok.*# skip" || true)
+            SKIP_COUNT=$((SKIP_COUNT + COUNT))
+          done
+          if [ "$SKIP_COUNT" -gt 0 ]; then
+            echo "::error::$SKIP_COUNT tests were SKIPPED. SKIP = FAIL policy (FR-054)."
+            exit 1
+          fi
+          echo "All tests executed (0 skips)"
+>>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
 
       - name: Upload test results
         if: always()
@@ -147,7 +180,11 @@ jobs:
       - name: Run shellcheck on lib/
         run: |
           if [ -d lib ]; then
+<<<<<<< HEAD
             find lib -name '*.sh' -type f -exec shellcheck -x -S error {} +
+=======
+            find lib -name '*.sh' -type f -exec shellcheck {} +
+>>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
           else
             echo "::warning::lib/ directory not found"
           fi
@@ -155,7 +192,11 @@ jobs:
       - name: Run shellcheck on scripts/
         run: |
           if [ -d scripts ]; then
+<<<<<<< HEAD
             find scripts -name '*.sh' -type f -exec shellcheck -x -S error {} +
+=======
+            find scripts -name '*.sh' -type f -exec shellcheck {} +
+>>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
           else
             echo "::warning::scripts/ directory not found"
           fi
@@ -171,7 +212,11 @@ jobs:
 
       - name: Install bats-core
         run: |
+<<<<<<< HEAD
           sudo npm install -g bats
+=======
+          npm install -g bats
+>>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
 
       - name: Setup bats helpers
         run: |

@@ -17,6 +17,10 @@ CORRUPT_DIR="$SCRIPT_DIR/logs/ntfy_inbox_corrupt"
 # shellcheck source=../lib/ntfy_auth.sh
 source "$SCRIPT_DIR/lib/ntfy_auth.sh"
 
+# ntfy_auth.sh読み込み
+# shellcheck source=../lib/ntfy_auth.sh
+source "$SCRIPT_DIR/lib/ntfy_auth.sh"
+
 if [ -z "$TOPIC" ]; then
     echo "[ntfy_listener] ntfy_topic not configured in settings.yaml" >&2
     exit 1
@@ -45,6 +49,7 @@ parse_tags() {
     python3 -c "import sys,json; print(','.join(json.load(sys.stdin).get('tags',[])))" 2>/dev/null
 }
 
+<<<<<<< HEAD
 append_ntfy_inbox() {
     local msg_id="$1"
     local ts="$2"
@@ -131,6 +136,8 @@ PY
     ) 200>"$LOCKFILE"
 }
 
+=======
+>>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
 echo "[$(date)] ntfy listener started — topic: $TOPIC (auth: ${NTFY_TOKEN:+token}${NTFY_USER:+basic}${NTFY_TOKEN:-${NTFY_USER:-none}})" >&2
 
 while true; do

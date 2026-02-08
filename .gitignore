@@ -109,6 +109,7 @@
 !skills/
 !skills/skill-creator/
 !skills/skill-creator/SKILL.md
+<<<<<<< HEAD
 !skills/learning-module-scaffold/
 !skills/learning-module-scaffold/SKILL.md
 !skills/review-mode-generator/
@@ -129,6 +130,8 @@
 !skills/production-rendering-audit/SKILL.md
 !skills/wp-picture-webp-auditor/
 !skills/wp-picture-webp-auditor/SKILL.md
+=======
+>>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
 
 # Tests
 !tests/
