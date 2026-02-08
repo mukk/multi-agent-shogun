@@ -1,6 +1,6 @@
 <div align="center">
 
-# multi-agent-shogun <sup>v2.0.0</sup>
+# multi-agent-shogun
 
 **Command your AI army like a feudal warlord.**
 
@@ -27,7 +27,7 @@ Run 10 Claude Code agents in parallel (1 Shogun + 1 Karo + 8 workers) — orches
 
 ## What is this?
 
-**multi-agent-shogun** is a system that runs multiple Claude Code instances simultaneously, orchestrating them like a feudal Japanese army.
+**multi-agent-shogun** is a system that runs multiple AI coding CLI instances simultaneously, orchestrating them like a feudal Japanese army. Supports **Claude Code**, **OpenAI Codex**, **GitHub Copilot**, and **Kimi Code**.
 
 **Why use it?**
 - One command spawns 8 AI workers executing in parallel
@@ -75,6 +75,47 @@ Most multi-agent frameworks burn API tokens on coordination. Shogun doesn't.
 **Full transparency** — Every agent runs in a visible tmux pane. Every instruction, report, and decision is a plain YAML file you can read, diff, and version-control. No black boxes.
 
 **Battle-tested hierarchy** — The Shogun → Karo → Ashigaru chain of command prevents conflicts by design: clear ownership, dedicated files per agent, event-driven communication, no polling.
+
+---
+
+## Why CLI (Not API)?
+
+Most AI coding tools charge per token. Running 8 Opus-grade agents through the API costs **$100+/hour**. CLI subscriptions flip this:
+
+| | API (Per-Token) | CLI (Flat-Rate) |
+|---|---|---|
+| **8 agents × Opus** | ~$100+/hour | ~$200/month |
+| **Cost predictability** | Unpredictable spikes | Fixed monthly bill |
+| **Usage anxiety** | Every token counts | Unlimited |
+| **Experimentation budget** | Constrained | Deploy freely |
+
+**"Use AI recklessly"** — With flat-rate CLI subscriptions, deploy 8 agents without hesitation. The cost is the same whether they work 1 hour or 24 hours. No more choosing between "good enough" and "thorough" — just run more agents.
+
+### Multi-CLI Support
+
+Shogun isn't locked to one vendor. The system supports 4 CLI tools, each with unique strengths:
+
+| CLI | Key Strength | Default Model |
+|-----|-------------|---------------|
+| **Claude Code** | Battle-tested tmux integration, Memory MCP, dedicated file tools (Read/Write/Edit/Glob/Grep) | Claude Sonnet 4.5 |
+| **OpenAI Codex** | Sandbox execution, JSONL structured output, `codex exec` headless mode | gpt-5.3-codex |
+| **GitHub Copilot** | Built-in GitHub MCP, 4 specialized agents (Explore/Task/Plan/Code-review), `/delegate` to coding agent | Claude Sonnet 4.5 |
+| **Kimi Code** | Free tier available, strong multilingual support | Kimi k2 |
+
+A unified instruction build system generates CLI-specific instruction files from shared templates:
+
+```
+instructions/
+├── common/              # Shared rules (all CLIs)
+├── cli_specific/        # CLI-specific tool descriptions
+│   ├── claude_tools.md  # Claude Code tools & features
+│   └── copilot_tools.md # GitHub Copilot CLI tools & features
+└── roles/               # Role definitions (shogun, karo, ashigaru)
+    ↓ build
+CLAUDE.md / AGENTS.md / copilot-instructions.md  ← Generated per CLI
+```
+
+One source of truth, zero sync drift. Change a rule once, all CLIs get it.
 
 ---
 
@@ -1211,7 +1252,10 @@ multi-agent-shogun/
 ├── instructions/             # Agent behavior definitions
 │   ├── shogun.md             # Shogun instructions
 │   ├── karo.md               # Karo instructions
-│   └── ashigaru.md           # Ashigaru instructions
+│   ├── ashigaru.md           # Ashigaru instructions
+│   └── cli_specific/         # CLI-specific tool descriptions
+│       ├── claude_tools.md   # Claude Code tools & features
+│       └── copilot_tools.md  # GitHub Copilot CLI tools & features
 │
 ├── scripts/                  # Utility scripts
 │   ├── inbox_write.sh        # Write messages to agent inbox
@@ -1398,19 +1442,27 @@ Even if you're not comfortable with keyboard shortcuts, you can switch, scroll, 
 ---
 
 <details>
-<summary><b>What's New in v2.0.0</b></summary>
+<summary><b>What's New in v3.0 — Multi-CLI</b></summary>
+
+- **Multi-CLI as first-class architecture** — `lib/cli_adapter.sh` dynamically selects CLI per agent. Change one line in `settings.yaml` to swap any worker between Claude Code, Codex, Copilot, or Kimi
+- **OpenAI Codex CLI integration** — GPT-5.3-codex with `--dangerously-bypass-approvals-and-sandbox` for true autonomous execution. `--no-alt-screen` makes agent activity visible in tmux
+- **CLI bypass flag discovery** — `--full-auto` is NOT fully automatic (it's `-a on-request`). Documented the correct flags for all 4 CLIs
+- **Hybrid architecture** — Command layer (Shogun + Karo) stays on Claude Code for Memory MCP and mailbox integration. Worker layer (Ashigaru) is CLI-agnostic
+- **Community-contributed CLI adapters** — Thanks to [@yuto-ts](https://github.com/yuto-ts) (cli_adapter.sh), [@circlemouth](https://github.com/circlemouth) (Codex support), [@koba6316](https://github.com/koba6316) (task routing)
+
+</details>
+
+<details>
+<summary><b>What was in v2.0</b></summary>
 
 - **ntfy bidirectional communication** — Send commands from your phone, receive push notifications for task completion
-- **SayTask notifications** — Streak tracking, Eat the Frog 🐸, behavioral psychology-driven motivation
+- **SayTask notifications** — Streak tracking, Eat the Frog, behavioral psychology-driven motivation
 - **Pane border task display** — See each agent's current task at a glance on the tmux pane border
-- **60% instruction token reduction** — English-only instructions + YAML restructuring
-- **42% /clear recovery cost reduction** — Faster agent recovery after context reset
-- **Battle mode** (`-k` flag) — All-Opus formation for maximum capability
-- **Task dependency system** (`blockedBy`) — Automatic unblocking of dependent tasks
-- **5 integration templates** — Standardized report formats for fact-finding, proposals, code review, and analysis
 - **Shout mode** (default) — Ashigaru shout personalized battle cries after completing tasks. Disable with `--silent`
 - **Nudge-only mailbox** — Agents communicate via file-based inbox; `send-keys` only delivers a 1-line wake-up signal, eliminating transmission failures
 - **Agent self-identification** (`@agent_id`) — Stable identity via tmux user options, immune to pane reordering
+- **Battle mode** (`-k` flag) — All-Opus formation for maximum capability
+- **Task dependency system** (`blockedBy`) — Automatic unblocking of dependent tasks
 
 </details>
 
