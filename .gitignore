@@ -109,6 +109,12 @@
 !skills/
 !skills/skill-creator/
 !skills/skill-creator/SKILL.md
+!skills/learning-module-scaffold/
+!skills/learning-module-scaffold/SKILL.md
+!skills/review-mode-generator/
+!skills/review-mode-generator/SKILL.md
+!skills/kifu-parser/
+!skills/kifu-parser/SKILL.md
 
 # Tests
 !tests/
