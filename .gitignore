@@ -115,6 +115,12 @@
 !skills/review-mode-generator/SKILL.md
 !skills/kifu-parser/
 !skills/kifu-parser/SKILL.md
+!skills/haskell-module-splitter/
+!skills/haskell-module-splitter/SKILL.md
+!skills/be-fe-adapter-pattern/
+!skills/be-fe-adapter-pattern/SKILL.md
+!skills/spa-to-react-router-migrator/
+!skills/spa-to-react-router-migrator/SKILL.md
 
 # Tests
 !tests/
