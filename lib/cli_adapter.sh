@@ -288,7 +288,7 @@ get_startup_prompt() {
 
     case "$cli_type" in
         codex)
-            echo "Session Start: Read AGENTS.md and follow the Session Start procedure. Step 1: identify yourself with tmux display-message."
+            echo "Session Start — do ALL of this in one turn, do NOT stop early: 1) tmux display-message -t \"\$TMUX_PANE\" -p '#{@agent_id}' to identify yourself. 2) Read queue/tasks/${agent_id}.yaml. 3) Read queue/inbox/${agent_id}.yaml, mark read:true. 4) Read files listed in context_files. 5) Execute the assigned task to completion — edit files, run commands, write reports. Keep working until the task is done."
             ;;
         *)
             echo ""

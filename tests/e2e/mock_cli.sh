@@ -257,8 +257,32 @@ while IFS= read -r input || true; do
     [ -z "$input" ] && continue
 
     case "$input" in
-        /clear|/new)
+        /new)
+            # Codex /new: reset state but do NOT auto-process tasks.
+            # Real Codex CLI loads AGENTS.md but does NOT trigger Session Start.
+            # Task processing requires an explicit startup prompt from inbox_watcher.
+            echo "[mock] /new received — conversation reset (no auto-task)"
+            STATE="idle"
+            show_prompt "$MOCK_CLI_TYPE"
+            ;;
+        /clear)
+            # Claude /clear: auto-reload CLAUDE.md → triggers Session Start → processes tasks.
             handle_clear
+            ;;
+        "Session Start"*)
+            # Codex startup prompt: triggers full recovery + task execution
+            echo "[mock] Startup prompt received: ${input:0:60}..."
+            # Check for assigned tasks (simulates Session Start procedure)
+            # Note: no 'local' here — we're in main loop, not a function
+            if [ -f "$TASK_FILE" ]; then
+                sp_status=$(yaml_read "$TASK_FILE" "task.status")
+                if [ "$sp_status" = "assigned" ]; then
+                    echo "[mock] Session Start: found assigned task — processing"
+                    process_inbox
+                    process_task "$TASK_FILE" || true
+                fi
+            fi
+            show_prompt "$MOCK_CLI_TYPE"
             ;;
         inbox*)
             # inbox nudge received (e.g., "inbox3")

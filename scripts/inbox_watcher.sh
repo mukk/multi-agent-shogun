@@ -48,6 +48,13 @@ if [ "${__INBOX_WATCHER_TESTING__:-}" != "1" ]; then
 
     echo "[$(date)] inbox_watcher started — agent: $AGENT_ID, pane: $PANE_TARGET, cli: $CLI_TYPE" >&2
 
+    # Source cli_adapter for get_startup_prompt() (Codex needs startup prompt after /new)
+    _cli_adapter="${SCRIPT_DIR}/lib/cli_adapter.sh"
+    if [ -f "$_cli_adapter" ]; then
+        source "$_cli_adapter"
+        echo "[$(date)] cli_adapter.sh loaded (get_startup_prompt available)" >&2
+    fi
+
     # Detect OS and select file-watching backend
     INBOX_WATCHER_OS="$(uname -s)"
     if [ "$INBOX_WATCHER_OS" = "Darwin" ]; then
@@ -109,6 +116,9 @@ NUDGE_COOLDOWN_SEC_CODEX=${NUDGE_COOLDOWN_SEC_CODEX:-300}
 # Tracks whether we've sent /new or /clear for the current task_assigned batch.
 # Resets to 0 when all messages are read (FIRST_UNREAD_SEEN → 0).
 NEW_CONTEXT_SENT=${NEW_CONTEXT_SENT:-0}
+# Tracks whether we sent a startup prompt (Codex) that includes full recovery.
+# When set, skip follow-up nudge for this cycle (agent already knows what to do).
+STARTUP_PROMPT_SENT=${STARTUP_PROMPT_SENT:-0}
 
 # ─── Phase feature flags (cmd_107 Phase 1/2/3) ───
 # ASW_PHASE:
@@ -508,11 +518,38 @@ send_context_reset() {
         sleep 5
         if ! agent_is_busy; then
             echo "[$(date)] [CONTEXT-RESET] $AGENT_ID idle after ${attempt}×5s — ready for nudge" >&2
-            return 0
+            break
         fi
         echo "[$(date)] [CONTEXT-RESET] $AGENT_ID still busy after ${attempt}×5s — retrying" >&2
     done
-    echo "[$(date)] [CONTEXT-RESET] $AGENT_ID still busy after 15s — proceeding with nudge anyway" >&2
+    if agent_is_busy; then
+        echo "[$(date)] [CONTEXT-RESET] $AGENT_ID still busy after 15s — proceeding with startup prompt anyway" >&2
+    fi
+
+    # Codex CLI: /new does NOT auto-trigger Session Start (unlike Claude Code /clear).
+    # Must send startup prompt explicitly to kick off the agent.
+    # The startup prompt includes ALL recovery steps (identify, read task YAML, read inbox,
+    # start work) so no separate nudge is needed afterward.
+    if [[ "$effective_cli" == "codex" ]]; then
+        local startup_prompt=""
+        if type get_startup_prompt &>/dev/null; then
+            startup_prompt=$(get_startup_prompt "$AGENT_ID" 2>/dev/null || true)
+        fi
+        if [[ -z "$startup_prompt" ]]; then
+            startup_prompt="Session Start — do ALL of this in one turn, do NOT stop early: 1) tmux display-message to identify yourself. 2) Read queue/tasks/${AGENT_ID}.yaml. 3) Read queue/inbox/${AGENT_ID}.yaml, mark read:true. 4) Read context_files. 5) Execute the assigned task to completion — edit files, run commands, write reports. Keep working until done."
+        fi
+        echo "[$(date)] [CONTEXT-RESET] Sending startup prompt to $AGENT_ID (codex): ${startup_prompt:0:80}..." >&2
+        # Dismiss suggestion UI, then send startup prompt
+        timeout 5 tmux send-keys -t "$PANE_TARGET" "x" 2>/dev/null || true
+        sleep 0.3
+        timeout 5 tmux send-keys -t "$PANE_TARGET" C-u 2>/dev/null || true
+        sleep 0.3
+        timeout 5 tmux send-keys -t "$PANE_TARGET" "$startup_prompt" 2>/dev/null || true
+        sleep 0.3
+        timeout 5 tmux send-keys -t "$PANE_TARGET" Enter 2>/dev/null || true
+        # Startup prompt includes full recovery — suppress follow-up nudge for this cycle
+        STARTUP_PROMPT_SENT=1
+    fi
 }
 
 # ─── Agent self-watch detection ───
@@ -846,6 +883,15 @@ for s in data.get('specials', []):
         if [ "$has_task_assigned" = "1" ] && [ "$NEW_CONTEXT_SENT" -eq 0 ] && [ "$clear_seen" -eq 0 ]; then
             send_context_reset
             NEW_CONTEXT_SENT=1
+        fi
+
+        # If startup prompt was just sent (Codex), skip follow-up nudge this cycle.
+        # The prompt itself contains full recovery instructions (identify + read YAML + work).
+        if [ "$STARTUP_PROMPT_SENT" -eq 1 ]; then
+            STARTUP_PROMPT_SENT=0
+            echo "[$(date)] [SKIP] Startup prompt just sent to $AGENT_ID — skipping nudge this cycle" >&2
+            FIRST_UNREAD_SEEN=$now
+            return 0
         fi
 
         # Track when we first saw unread messages

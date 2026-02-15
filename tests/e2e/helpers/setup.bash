@@ -31,6 +31,23 @@ setup_e2e_session() {
     chmod +x "$E2E_QUEUE/scripts/inbox_write.sh"
     chmod +x "$E2E_QUEUE/scripts/inbox_watcher.sh"
 
+    # Copy lib/ for cli_adapter.sh (needed by inbox_watcher for Codex startup prompt)
+    if [ -d "$PROJECT_ROOT/lib" ]; then
+        mkdir -p "$E2E_QUEUE/lib"
+        cp "$PROJECT_ROOT/lib/cli_adapter.sh" "$E2E_QUEUE/lib/" 2>/dev/null || true
+    fi
+
+    # Copy config/ for cli_adapter settings resolution
+    if [ -d "$PROJECT_ROOT/config" ]; then
+        mkdir -p "$E2E_QUEUE/config"
+        cp "$PROJECT_ROOT/config/settings.yaml" "$E2E_QUEUE/config/" 2>/dev/null || true
+    fi
+
+    # Link .venv for inbox_write.sh (uses $SCRIPT_DIR/.venv/bin/python3)
+    if [ -d "$PROJECT_ROOT/.venv" ]; then
+        ln -sf "$PROJECT_ROOT/.venv" "$E2E_QUEUE/.venv"
+    fi
+
     # Initialize empty inboxes
     for agent in "${DEFAULT_AGENTS[@]}"; do
         echo "messages:" > "$E2E_QUEUE/queue/inbox/${agent}.yaml"
@@ -93,9 +110,11 @@ reset_queues() {
 # ─── start_inbox_watcher ───
 # Starts inbox_watcher for a specific agent in background.
 # Returns PID via stdout.
+# Usage: start_inbox_watcher <agent_id> <pane_idx> [cli_type]
 start_inbox_watcher() {
     local agent_id="$1"
     local pane_idx="$2"
+    local cli_type="${3:-claude}"
     local pane_target="${E2E_SESSION}:agents.${pane_idx}"
     local log_file="/tmp/e2e_inbox_watcher_${agent_id}_$$.log"
 
@@ -106,7 +125,7 @@ start_inbox_watcher() {
     ESCALATE_PHASE2="${E2E_ESCALATE_PHASE2:-20}" \
     ESCALATE_COOLDOWN="${E2E_ESCALATE_COOLDOWN:-25}" \
     INOTIFY_TIMEOUT="${E2E_INOTIFY_TIMEOUT:-5}" \
-    bash "$E2E_QUEUE/scripts/inbox_watcher.sh" "$agent_id" "$pane_target" "claude" \
+    bash "$E2E_QUEUE/scripts/inbox_watcher.sh" "$agent_id" "$pane_target" "$cli_type" \
         > "$log_file" 2>&1 &
 
     local pid=$!

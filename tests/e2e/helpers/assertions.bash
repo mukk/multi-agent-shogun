@@ -38,15 +38,16 @@ wait_for_pane_text() {
     local pane="$1" pattern="$2" timeout="${3:-30}"
     local elapsed=0
     while [ "$elapsed" -lt "$timeout" ]; do
-        if tmux capture-pane -t "$pane" -p 2>/dev/null | grep -qE "$pattern"; then
+        # -S - captures full scrollback (not just visible area)
+        if tmux capture-pane -t "$pane" -p -S - 2>/dev/null | grep -qE "$pattern"; then
             return 0
         fi
         sleep 1
         elapsed=$((elapsed + 1))
     done
     echo "TIMEOUT: pattern '$pattern' not found in $pane after ${timeout}s" >&2
-    echo "--- Pane content ---" >&2
-    tmux capture-pane -t "$pane" -p 2>/dev/null >&2 || true
+    echo "--- Pane content (scrollback) ---" >&2
+    tmux capture-pane -t "$pane" -p -S - 2>/dev/null | tail -40 >&2 || true
     echo "--- End pane content ---" >&2
     return 1
 }
