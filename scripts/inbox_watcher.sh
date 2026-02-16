@@ -416,6 +416,11 @@ send_cli_command() {
             # Codex: /clear不存在→/newで新規会話開始, /model非対応→スキップ
             # /clearはCodexでは未定義コマンドでCLI終了してしまうため、/newに変換
             if [[ "$cmd" == "/clear" ]]; then
+                # Guard: skip duplicate /new if already sent for this batch
+                if [ "${NEW_CONTEXT_SENT:-0}" -eq 1 ]; then
+                    echo "[$(date)] [SKIP] Codex /new already sent for $AGENT_ID — skipping duplicate clear_command" >&2
+                    return 0
+                fi
                 echo "[$(date)] [SEND-KEYS] Codex /clear→/new: starting new conversation for $AGENT_ID" >&2
                 # Dismiss suggestion UI first (typing "x" clears autocomplete prompt)
                 timeout 5 tmux send-keys -t "$PANE_TARGET" "x" 2>/dev/null || true
@@ -426,6 +431,9 @@ send_cli_command() {
                 sleep 0.3
                 timeout 5 tmux send-keys -t "$PANE_TARGET" Enter 2>/dev/null || true
                 sleep 3
+                # Send startup prompt immediately (don't defer to context-reset cycle)
+                send_codex_startup_prompt
+                NEW_CONTEXT_SENT=1
                 return 0
             fi
             if [[ "$cmd" == /model* ]]; then
@@ -472,6 +480,45 @@ send_cli_command() {
     fi
 }
 
+# ─── Send Codex startup prompt after /new ───
+# Waits for agent to become idle, then sends a startup prompt that includes
+# full recovery steps (identify, read task YAML, read inbox, start work).
+# Called from both send_cli_command (clear_command) and send_context_reset.
+send_codex_startup_prompt() {
+    # Poll until agent becomes idle (prompt ready) instead of fixed sleep.
+    # Max 15s (3 attempts × 5s). If still busy after 15s, proceed anyway.
+    local attempt
+    for attempt in 1 2 3; do
+        sleep 5
+        if ! agent_is_busy; then
+            echo "[$(date)] [STARTUP] $AGENT_ID idle after ${attempt}×5s — sending startup prompt" >&2
+            break
+        fi
+        echo "[$(date)] [STARTUP] $AGENT_ID still busy after ${attempt}×5s — retrying" >&2
+    done
+    if agent_is_busy; then
+        echo "[$(date)] [STARTUP] $AGENT_ID still busy after 15s — proceeding with startup prompt anyway" >&2
+    fi
+
+    local startup_prompt=""
+    if type get_startup_prompt &>/dev/null; then
+        startup_prompt=$(get_startup_prompt "$AGENT_ID" 2>/dev/null || true)
+    fi
+    if [[ -z "$startup_prompt" ]]; then
+        startup_prompt="Session Start — do ALL of this in one turn, do NOT stop early: 1) tmux display-message to identify yourself. 2) Read queue/tasks/${AGENT_ID}.yaml. 3) Read queue/inbox/${AGENT_ID}.yaml, mark read:true. 4) Read context_files. 5) Execute the assigned task to completion — edit files, run commands, write reports. Keep working until done."
+    fi
+    echo "[$(date)] [STARTUP] Sending startup prompt to $AGENT_ID (codex): ${startup_prompt:0:80}..." >&2
+    # Dismiss suggestion UI, then send startup prompt
+    timeout 5 tmux send-keys -t "$PANE_TARGET" "x" 2>/dev/null || true
+    sleep 0.3
+    timeout 5 tmux send-keys -t "$PANE_TARGET" C-u 2>/dev/null || true
+    sleep 0.3
+    timeout 5 tmux send-keys -t "$PANE_TARGET" "$startup_prompt" 2>/dev/null || true
+    sleep 0.3
+    timeout 5 tmux send-keys -t "$PANE_TARGET" Enter 2>/dev/null || true
+    STARTUP_PROMPT_SENT=1
+}
+
 # ─── Send context reset before new task ───
 # Called when task_assigned is detected in unread messages.
 # Sends the appropriate "new conversation" command per CLI type to clear
@@ -498,14 +545,25 @@ send_context_reset() {
 
     echo "[$(date)] [CONTEXT-RESET] Sending $reset_cmd before task_assigned for $AGENT_ID ($effective_cli)" >&2
 
-    # Dismiss Codex suggestion UI before sending reset command
+    # Codex: send /new + startup prompt as a single atomic operation.
+    # When called from clear_command path, NEW_CONTEXT_SENT=1 prevents reaching here.
+    # When called for standalone task_assigned, this is the only /new send.
     if [[ "$effective_cli" == "codex" ]]; then
+        # Dismiss suggestion UI + send /new
         timeout 5 tmux send-keys -t "$PANE_TARGET" "x" 2>/dev/null || true
         sleep 0.3
         timeout 5 tmux send-keys -t "$PANE_TARGET" C-u 2>/dev/null || true
         sleep 0.3
+        timeout 5 tmux send-keys -t "$PANE_TARGET" "/new" 2>/dev/null || true
+        sleep 0.3
+        timeout 5 tmux send-keys -t "$PANE_TARGET" Enter 2>/dev/null || true
+        sleep 3
+        # Wait for idle + send startup prompt via shared helper
+        send_codex_startup_prompt
+        return 0
     fi
 
+    # Non-Codex CLIs: send /clear and wait for idle
     # Send the command (text and Enter separated for TUI compatibility)
     timeout 5 tmux send-keys -t "$PANE_TARGET" "$reset_cmd" 2>/dev/null || true
     sleep 0.3
@@ -523,32 +581,7 @@ send_context_reset() {
         echo "[$(date)] [CONTEXT-RESET] $AGENT_ID still busy after ${attempt}×5s — retrying" >&2
     done
     if agent_is_busy; then
-        echo "[$(date)] [CONTEXT-RESET] $AGENT_ID still busy after 15s — proceeding with startup prompt anyway" >&2
-    fi
-
-    # Codex CLI: /new does NOT auto-trigger Session Start (unlike Claude Code /clear).
-    # Must send startup prompt explicitly to kick off the agent.
-    # The startup prompt includes ALL recovery steps (identify, read task YAML, read inbox,
-    # start work) so no separate nudge is needed afterward.
-    if [[ "$effective_cli" == "codex" ]]; then
-        local startup_prompt=""
-        if type get_startup_prompt &>/dev/null; then
-            startup_prompt=$(get_startup_prompt "$AGENT_ID" 2>/dev/null || true)
-        fi
-        if [[ -z "$startup_prompt" ]]; then
-            startup_prompt="Session Start — do ALL of this in one turn, do NOT stop early: 1) tmux display-message to identify yourself. 2) Read queue/tasks/${AGENT_ID}.yaml. 3) Read queue/inbox/${AGENT_ID}.yaml, mark read:true. 4) Read context_files. 5) Execute the assigned task to completion — edit files, run commands, write reports. Keep working until done."
-        fi
-        echo "[$(date)] [CONTEXT-RESET] Sending startup prompt to $AGENT_ID (codex): ${startup_prompt:0:80}..." >&2
-        # Dismiss suggestion UI, then send startup prompt
-        timeout 5 tmux send-keys -t "$PANE_TARGET" "x" 2>/dev/null || true
-        sleep 0.3
-        timeout 5 tmux send-keys -t "$PANE_TARGET" C-u 2>/dev/null || true
-        sleep 0.3
-        timeout 5 tmux send-keys -t "$PANE_TARGET" "$startup_prompt" 2>/dev/null || true
-        sleep 0.3
-        timeout 5 tmux send-keys -t "$PANE_TARGET" Enter 2>/dev/null || true
-        # Startup prompt includes full recovery — suppress follow-up nudge for this cycle
-        STARTUP_PROMPT_SENT=1
+        echo "[$(date)] [CONTEXT-RESET] $AGENT_ID still busy after 15s — proceeding anyway" >&2
     fi
 }
 
