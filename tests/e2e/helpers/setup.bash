@@ -31,10 +31,11 @@ setup_e2e_session() {
     chmod +x "$E2E_QUEUE/scripts/inbox_write.sh"
     chmod +x "$E2E_QUEUE/scripts/inbox_watcher.sh"
 
-    # Copy lib/ for cli_adapter.sh (needed by inbox_watcher for Codex startup prompt)
+    # Copy lib/ for cli_adapter.sh and agent_status.sh (needed by inbox_watcher)
     if [ -d "$PROJECT_ROOT/lib" ]; then
         mkdir -p "$E2E_QUEUE/lib"
         cp "$PROJECT_ROOT/lib/cli_adapter.sh" "$E2E_QUEUE/lib/" 2>/dev/null || true
+        cp "$PROJECT_ROOT/lib/agent_status.sh" "$E2E_QUEUE/lib/" 2>/dev/null || true
     fi
 
     # Copy config/ for cli_adapter settings resolution

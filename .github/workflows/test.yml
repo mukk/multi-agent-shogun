@@ -226,7 +226,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y tmux inotify-tools python3-yaml
+          sudo apt-get install -y tmux inotify-tools python3-venv
+
+      - name: Setup Python venv with PyYAML
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pyyaml
 
       - name: Install bats-core
         run: sudo npm install -g bats
