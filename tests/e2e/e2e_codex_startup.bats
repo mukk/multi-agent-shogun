@@ -208,3 +208,135 @@ dump_watcher_log() {
     # Cleanup
     stop_inbox_watcher "$watcher_pid"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# E2E-008-D: Codex clear_command sends /new exactly once
+#            (dedup guard prevents multiple /new sends)
+# ═══════════════════════════════════════════════════════════════
+# Regression test for the /new multi-send bug where clear_command
+# followed by auto-recovery task_assigned caused 2+ /new sends,
+# wiping the startup prompt each time.
+
+@test "E2E-008-D: Codex clear_command sends /new exactly once, not multiple times" {
+    local ashigaru1_pane
+    ashigaru1_pane=$(pane_target 1)
+
+    # 1. Respawn pane with codex mock
+    tmux respawn-pane -k -t "$ashigaru1_pane" \
+        "MOCK_CLI_TYPE=codex MOCK_AGENT_ID=ashigaru1 MOCK_PROCESSING_DELAY=1 MOCK_PROJECT_ROOT=$E2E_QUEUE bash $PROJECT_ROOT/tests/e2e/mock_cli.sh"
+    sleep 2
+    tmux set-option -p -t "$ashigaru1_pane" @agent_cli "codex"
+
+    # 2. Place assigned task YAML
+    cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
+       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+
+    # 3. Send clear_command via inbox_write (simulates karo sending /clear)
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
+        "/clear" "clear_command" "karo"
+
+    # 4. Start inbox_watcher with codex CLI type
+    local watcher_pid log_file
+    watcher_pid=$(start_inbox_watcher "ashigaru1" 1 "codex")
+    log_file="/tmp/e2e_inbox_watcher_ashigaru1_$$.log"
+
+    # 5. Wait for task to complete
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 60
+    if [ "$status" -ne 0 ]; then
+        dump_pane_for_debug "$ashigaru1_pane" "ashigaru1-codex-D"
+        dump_watcher_log "$log_file"
+    fi
+    assert_success
+
+    # 6. Count /new sends in watcher log — must be exactly 1
+    local new_count
+    new_count=$(grep -c "Codex /clear→/new" "$log_file" 2>/dev/null || true)
+    if [ "$new_count" -ne 1 ]; then
+        echo "Expected 1 /new send, got $new_count" >&2
+        dump_watcher_log "$log_file"
+    fi
+    [ "$new_count" -eq 1 ]
+
+    # 7. Verify startup prompt was sent exactly once
+    local startup_count
+    startup_count=$(grep -c "Sending startup prompt to ashigaru1" "$log_file" 2>/dev/null || true)
+    if [ "$startup_count" -ne 1 ]; then
+        echo "Expected 1 startup prompt, got $startup_count" >&2
+        dump_watcher_log "$log_file"
+    fi
+    [ "$startup_count" -eq 1 ]
+
+    # 8. Verify no duplicate context-reset /new was sent
+    local context_reset_new_count
+    context_reset_new_count=$(grep -c "CONTEXT-RESET.*Sending /new" "$log_file" 2>/dev/null || true)
+    if [ "$context_reset_new_count" -ne 0 ]; then
+        echo "Expected 0 context-reset /new sends (clear_command path should skip), got $context_reset_new_count" >&2
+        dump_watcher_log "$log_file"
+    fi
+    [ "$context_reset_new_count" -eq 0 ]
+
+    # Cleanup
+    stop_inbox_watcher "$watcher_pid"
+}
+
+# ═══════════════════════════════════════════════════════════════
+# E2E-008-E: Multiple clear_commands to Codex agent still
+#            result in only one /new send
+# ═══════════════════════════════════════════════════════════════
+
+@test "E2E-008-E: Multiple rapid clear_commands to Codex result in single /new" {
+    local ashigaru1_pane
+    ashigaru1_pane=$(pane_target 1)
+
+    # 1. Respawn pane with codex mock
+    tmux respawn-pane -k -t "$ashigaru1_pane" \
+        "MOCK_CLI_TYPE=codex MOCK_AGENT_ID=ashigaru1 MOCK_PROCESSING_DELAY=1 MOCK_PROJECT_ROOT=$E2E_QUEUE bash $PROJECT_ROOT/tests/e2e/mock_cli.sh"
+    sleep 2
+    tmux set-option -p -t "$ashigaru1_pane" @agent_cli "codex"
+
+    # 2. Place assigned task YAML
+    cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
+       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+
+    # 3. Send THREE clear_commands in rapid succession (simulates karo bug)
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
+        "/clear" "clear_command" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
+        "/clear" "clear_command" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
+        "/clear" "clear_command" "karo"
+
+    # 4. Start inbox_watcher with codex CLI type
+    local watcher_pid log_file
+    watcher_pid=$(start_inbox_watcher "ashigaru1" 1 "codex")
+    log_file="/tmp/e2e_inbox_watcher_ashigaru1_$$.log"
+
+    # 5. Wait for task to complete
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 60
+    if [ "$status" -ne 0 ]; then
+        dump_pane_for_debug "$ashigaru1_pane" "ashigaru1-codex-E"
+        dump_watcher_log "$log_file"
+    fi
+    assert_success
+
+    # 6. Count /new sends — must be exactly 1 despite 3 clear_commands
+    local new_count
+    new_count=$(grep -c "Codex /clear→/new" "$log_file" 2>/dev/null || true)
+    if [ "$new_count" -ne 1 ]; then
+        echo "Expected 1 /new send despite 3 clear_commands, got $new_count" >&2
+        dump_watcher_log "$log_file"
+    fi
+    [ "$new_count" -eq 1 ]
+
+    # 7. Verify dedup guard logged skips for extra clear_commands
+    local skip_count
+    skip_count=$(grep -c "SKIP.*Codex /new already sent" "$log_file" 2>/dev/null || true)
+    if [ "$skip_count" -lt 1 ]; then
+        echo "Expected at least 1 dedup skip log, got $skip_count" >&2
+        dump_watcher_log "$log_file"
+    fi
+    [ "$skip_count" -ge 1 ]
+
+    # Cleanup
+    stop_inbox_watcher "$watcher_pid"
+}
