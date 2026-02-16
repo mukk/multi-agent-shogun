@@ -36,7 +36,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-yaml
+          sudo apt-get install -y python3-venv
+
+      - name: Setup Python venv with PyYAML
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pyyaml
 
 <<<<<<< HEAD
       - name: Run root-level tests (except agent_selfwatch)
