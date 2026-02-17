@@ -93,13 +93,17 @@ teardown() {
         skip "ashigaru4ペインが見つからない"
     fi
 
-    # ashigaru4がビジー状態か確認（exit 1=idle は set -e で落ちるので || で受ける）
+    # sleep でビジー状態を作成（teardownはtrapで保証）
+    # shellcheck disable=SC2064
+    trap "tmux send-keys -t '$pane4' '' C-c; sleep 0.3" EXIT
+    tmux send-keys -t "$pane4" "echo 'Working...'; sleep 30" Enter
+    sleep 1
+
+    # ビジー確認
     busy_rc=0
     agent_is_busy_check "$pane4" && true || busy_rc=$?
-
-    # ashigaru4がアイドルの場合はテスト前提が満たせない
-    if [[ $busy_rc -eq 1 ]]; then
-        skip "ashigaru4がアイドル状態。テストはビジー状態で実施要。"
+    if [[ $busy_rc -ne 0 ]]; then
+        skip "ashigaru4をビジー状態にできなかった（busy_rc=${busy_rc}）"
     fi
 
     # L5タスクのルーティング
@@ -130,12 +134,19 @@ teardown() {
         skip "ashigaru4またはashigaru5ペインが見つからない"
     fi
 
-    # 両方ビジー状態か確認（exit 1=idle は set -e で落ちるので || で受ける）
+    # sleep でashigaru4/5をビジー状態に（teardownはtrapで保証）
+    # shellcheck disable=SC2064
+    trap "tmux send-keys -t '$pane4' '' C-c; tmux send-keys -t '$pane5' '' C-c; sleep 0.3" EXIT
+    tmux send-keys -t "$pane4" "echo 'Working...'; sleep 30" Enter
+    tmux send-keys -t "$pane5" "echo 'Working...'; sleep 30" Enter
+    sleep 1
+
+    # 両方ビジー確認
     rc4=0; agent_is_busy_check "$pane4" && true || rc4=$?
     rc5=0; agent_is_busy_check "$pane5" && true || rc5=$?
 
-    if [[ $rc4 -eq 1 || $rc5 -eq 1 ]]; then
-        skip "ashigaru4/5のいずれかがアイドル。両方ビジー状態でテスト要。"
+    if [[ $rc4 -ne 0 || $rc5 -ne 0 ]]; then
+        skip "ashigaru4/5のいずれかをビジー状態にできなかった（rc4=${rc4}, rc5=${rc5}）"
     fi
 
     # L5タスクのルーティング
