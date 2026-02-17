@@ -125,6 +125,10 @@
 !skills/url-state-encoder/SKILL.md
 !skills/wordpress-theme-image-audit/
 !skills/wordpress-theme-image-audit/SKILL.md
+!skills/production-rendering-audit/
+!skills/production-rendering-audit/SKILL.md
+!skills/wp-picture-webp-auditor/
+!skills/wp-picture-webp-auditor/SKILL.md
 
 # Tests
 !tests/
