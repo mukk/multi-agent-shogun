@@ -93,9 +93,9 @@ teardown() {
         skip "ashigaru4ペインが見つからない"
     fi
 
-    # ashigaru4がビジー状態か確認
-    agent_is_busy_check "$pane4"
-    busy_rc=$?
+    # ashigaru4がビジー状態か確認（exit 1=idle は set -e で落ちるので || で受ける）
+    busy_rc=0
+    agent_is_busy_check "$pane4" && true || busy_rc=$?
 
     # ashigaru4がアイドルの場合はテスト前提が満たせない
     if [[ $busy_rc -eq 1 ]]; then
@@ -112,8 +112,8 @@ teardown() {
         { echo "期待: ashigaru5, 実際: $output"; return 1; }
 
     # ashigaru4がまだ稼働中（kill/restartされていない）を確認
-    agent_is_busy_check "$pane4"
-    still_busy=$?
+    still_busy=0
+    agent_is_busy_check "$pane4" && true || still_busy=$?
     [[ $still_busy -eq 0 ]] || echo "WARNING: ashigaru4の状態が変化した（kill/restartの可能性）"
 }
 
@@ -130,9 +130,9 @@ teardown() {
         skip "ashigaru4またはashigaru5ペインが見つからない"
     fi
 
-    # 両方ビジー状態か確認
-    agent_is_busy_check "$pane4"; rc4=$?
-    agent_is_busy_check "$pane5"; rc5=$?
+    # 両方ビジー状態か確認（exit 1=idle は set -e で落ちるので || で受ける）
+    rc4=0; agent_is_busy_check "$pane4" && true || rc4=$?
+    rc5=0; agent_is_busy_check "$pane5" && true || rc5=$?
 
     if [[ $rc4 -eq 1 || $rc5 -eq 1 ]]; then
         skip "ashigaru4/5のいずれかがアイドル。両方ビジー状態でテスト要。"
