@@ -295,3 +295,473 @@ get_startup_prompt() {
             ;;
     esac
 }
+
+# =============================================================================
+# Dynamic Model Routing — Issue #53 Phase 1
+# capability_tier読取、推奨モデル選定、コストグループ取得
+# =============================================================================
+
+# get_capability_tier(model_name)
+# 指定モデルのBloomレベル上限を返す
+# capability_tiersセクション未定義 or モデル未定義 → 6（制限なし）
+# Note: モデル名にドットを含む場合があるため _cli_adapter_read_yaml は使わない
+get_capability_tier() {
+    local model_name="$1"
+
+    if [[ -z "$model_name" ]]; then
+        echo "6"
+        return 0
+    fi
+
+    local result
+    result=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
+import yaml, sys
+try:
+    with open('${CLI_ADAPTER_SETTINGS}') as f:
+        cfg = yaml.safe_load(f) or {}
+    tiers = cfg.get('capability_tiers')
+    if not tiers or not isinstance(tiers, dict):
+        print('6'); sys.exit(0)
+    spec = tiers.get('${model_name}')
+    if not spec or not isinstance(spec, dict):
+        print('6'); sys.exit(0)
+    mb = spec.get('max_bloom', 6)
+    if isinstance(mb, int) and 1 <= mb <= 6:
+        print(mb)
+    else:
+        print('6')
+except Exception:
+    print('6')
+" 2>/dev/null)
+
+    if [[ -z "$result" ]]; then
+        echo "6"
+    else
+        echo "$result"
+    fi
+}
+
+# get_cost_group(model_name)
+# 指定モデルのコストグループを返す
+# 未定義 → "unknown"
+# Note: モデル名にドットを含む場合があるため _cli_adapter_read_yaml は使わない
+get_cost_group() {
+    local model_name="$1"
+
+    if [[ -z "$model_name" ]]; then
+        echo "unknown"
+        return 0
+    fi
+
+    local result
+    result=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
+import yaml, sys
+try:
+    with open('${CLI_ADAPTER_SETTINGS}') as f:
+        cfg = yaml.safe_load(f) or {}
+    tiers = cfg.get('capability_tiers')
+    if not tiers or not isinstance(tiers, dict):
+        print('unknown'); sys.exit(0)
+    spec = tiers.get('${model_name}')
+    if not spec or not isinstance(spec, dict):
+        print('unknown'); sys.exit(0)
+    cg = spec.get('cost_group', 'unknown')
+    print(cg if cg else 'unknown')
+except Exception:
+    print('unknown')
+" 2>/dev/null)
+
+    if [[ -z "$result" ]]; then
+        echo "unknown"
+    else
+        echo "$result"
+    fi
+}
+
+# get_recommended_model(bloom_level)
+# 指定Bloomレベルに対応する最もコスト効率の良いモデルを返す
+# capability_tiersセクション不在 → 空文字列
+# bloom_level範囲外(1-6以外) → 空文字列 + exit code 1
+get_recommended_model() {
+    local bloom_level="$1"
+
+    # 範囲チェック
+    if [[ ! "$bloom_level" =~ ^[1-6]$ ]]; then
+        echo ""
+        return 1
+    fi
+
+    local result
+    result=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
+import yaml, sys
+try:
+    with open('${CLI_ADAPTER_SETTINGS}') as f:
+        cfg = yaml.safe_load(f) or {}
+    tiers = cfg.get('capability_tiers')
+    if not tiers or not isinstance(tiers, dict):
+        print('')
+        sys.exit(0)
+
+    bloom = int('${bloom_level}')
+    cost_priority = {'chatgpt_pro': 0, 'claude_max': 1}
+
+    candidates = []
+    for model, spec in tiers.items():
+        if not isinstance(spec, dict):
+            continue
+        mb = spec.get('max_bloom', 6)
+        if isinstance(mb, int) and mb >= bloom:
+            cg = spec.get('cost_group', 'unknown')
+            candidates.append((cost_priority.get(cg, 99), mb, model))
+
+    if not candidates:
+        # No model can handle this bloom level — pick the highest
+        best = max(tiers.items(), key=lambda x: x[1].get('max_bloom', 0) if isinstance(x[1], dict) else 0)
+        print(best[0])
+    else:
+        # Sort by: 1) lowest max_bloom (just enough), 2) cost priority (chatgpt_pro first)
+        candidates.sort(key=lambda x: (x[1], x[0]))
+        print(candidates[0][2])
+except Exception:
+    print('')
+" 2>/dev/null)
+
+    echo "$result"
+}
+
+# =============================================================================
+# Dynamic Model Routing — Issue #53 Phase 2
+# model_switch判定、推奨アクション、CLI互換性チェック
+# =============================================================================
+
+# needs_model_switch(current_model, bloom_level)
+# 現在モデルが指定Bloomレベルを処理できるか判定
+# 出力: "yes" (switch必要) | "no" (不要) | "skip" (判定不可)
+needs_model_switch() {
+    local current_model="$1"
+    local bloom_level="$2"
+
+    # bloom_level未指定 → 判定スキップ
+    if [[ -z "$bloom_level" || ! "$bloom_level" =~ ^[1-6]$ ]]; then
+        echo "skip"
+        return 0
+    fi
+
+    # capability_tiersの存在チェック
+    local max_bloom
+    max_bloom=$(get_capability_tier "$current_model")
+
+    # capability_tiersセクション不在チェック（全モデルが6を返す場合）
+    local has_tiers
+    has_tiers=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
+import yaml, sys
+try:
+    with open('${CLI_ADAPTER_SETTINGS}') as f:
+        cfg = yaml.safe_load(f) or {}
+    tiers = cfg.get('capability_tiers')
+    print('yes' if tiers and isinstance(tiers, dict) else 'no')
+except:
+    print('no')
+" 2>/dev/null)
+
+    if [[ "$has_tiers" != "yes" ]]; then
+        echo "skip"
+        return 0
+    fi
+
+    if [[ "$bloom_level" -gt "$max_bloom" ]]; then
+        echo "yes"
+    else
+        echo "no"
+    fi
+}
+
+# get_switch_recommendation(current_model, bloom_level)
+# switch判定 + 推奨モデル + コストグループ遷移を返す
+# 出力: "no_switch" | "{recommended_model}:{transition_type}"
+#   transition_type: "same_cost_group" | "cross_cost_group"
+get_switch_recommendation() {
+    local current_model="$1"
+    local bloom_level="$2"
+
+    local switch_needed
+    switch_needed=$(needs_model_switch "$current_model" "$bloom_level")
+
+    if [[ "$switch_needed" != "yes" ]]; then
+        echo "no_switch"
+        return 0
+    fi
+
+    local recommended
+    recommended=$(get_recommended_model "$bloom_level")
+
+    if [[ -z "$recommended" ]]; then
+        echo "no_switch"
+        return 0
+    fi
+
+    local current_cg recommended_cg transition
+    current_cg=$(get_cost_group "$current_model")
+    recommended_cg=$(get_cost_group "$recommended")
+
+    if [[ "$current_cg" = "$recommended_cg" ]]; then
+        transition="same_cost_group"
+    else
+        transition="cross_cost_group"
+    fi
+
+    echo "${recommended}:${transition}"
+}
+
+# can_model_switch(cli_type)
+# 指定CLI種別でmodel_switchが可能か判定
+# 出力: "full" (Claude: /modelコマンド対応) | "limited" (Codex: 同CLI内のみ) | "none"
+can_model_switch() {
+    local cli_type="$1"
+
+    case "$cli_type" in
+        claude)  echo "full" ;;
+        codex)   echo "limited" ;;
+        copilot) echo "none" ;;
+        kimi)    echo "none" ;;
+        *)       echo "none" ;;
+    esac
+}
+
+# =============================================================================
+# Dynamic Model Routing — Issue #53 Phase 3
+# gunshi_analysis.yamlバリデーション、Bloom分析トリガー判定
+# =============================================================================
+
+# get_bloom_routing()
+# settings.yamlからbloom_routing設定を読取+バリデーション
+# 出力: "auto" | "manual" | "off"
+# 不正値 → "off" + stderr警告
+get_bloom_routing() {
+    local settings="${CLI_ADAPTER_SETTINGS:-${CLI_ADAPTER_PROJECT_ROOT}/config/settings.yaml}"
+
+    local raw
+    raw=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
+import yaml, sys
+try:
+    with open('${settings}') as f:
+        cfg = yaml.safe_load(f) or {}
+    val = cfg.get('bloom_routing')
+    if val is None:
+        print('off')
+    elif val is False:
+        print('off')
+    else:
+        print(str(val))
+except Exception:
+    print('off')
+" 2>/dev/null)
+
+    case "$raw" in
+        auto|manual|off)
+            echo "$raw"
+            ;;
+        *)
+            echo "off"
+            echo "[WARN] bloom_routing: invalid value '${raw}', falling back to 'off'" >&2
+            ;;
+    esac
+}
+
+# validate_gunshi_analysis(yaml_path)
+# gunshi_analysis.yamlのスキーマバリデーション
+# 出力: "valid" (正常) | エラーメッセージ (異常)
+# 終了コード: 0 (正常) | 1 (異常)
+validate_gunshi_analysis() {
+    local yaml_path="$1"
+
+    if [[ ! -f "$yaml_path" ]]; then
+        echo "error: file not found: ${yaml_path}"
+        return 1
+    fi
+
+    local result
+    result=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
+import yaml, sys
+
+try:
+    with open('${yaml_path}') as f:
+        doc = yaml.safe_load(f)
+except Exception as e:
+    print(f'error: YAML parse failed: {e}')
+    sys.exit(1)
+
+if not isinstance(doc, dict):
+    print('error: root must be a mapping')
+    sys.exit(1)
+
+# Required fields
+if 'task_id' not in doc:
+    print('error: missing required field: task_id')
+    sys.exit(1)
+if 'timestamp' not in doc:
+    print('error: missing required field: timestamp')
+    sys.exit(1)
+
+analysis = doc.get('analysis')
+if not isinstance(analysis, dict):
+    print('error: missing or invalid analysis section')
+    sys.exit(1)
+
+# bloom_level: integer 1-6
+bl = analysis.get('bloom_level')
+if bl is None:
+    print('error: missing analysis.bloom_level')
+    sys.exit(1)
+if not isinstance(bl, int) or bl < 1 or bl > 6:
+    print(f'error: bloom_level must be integer 1-6, got {bl}')
+    sys.exit(1)
+
+# confidence: float 0.0-1.0
+conf = analysis.get('confidence')
+if conf is not None:
+    if not isinstance(conf, (int, float)) or conf < 0.0 or conf > 1.0:
+        print(f'error: confidence must be 0.0-1.0, got {conf}')
+        sys.exit(1)
+
+# #48 fields are optional — no validation needed
+print('valid')
+" 2>&1)
+
+    if [[ "$result" == "valid" ]]; then
+        echo "valid"
+        return 0
+    else
+        echo "$result"
+        return 1
+    fi
+}
+
+# should_trigger_bloom_analysis(bloom_routing, bloom_analysis_required, gunshi_available)
+# Bloom分析をトリガーすべきか判定
+# $1: bloom_routing — "auto" | "manual" | "off"
+# $2: bloom_analysis_required — "true" | "false" (タスクYAMLのフラグ)
+# $3: gunshi_available — "yes" | "no" (省略時 "yes")
+# 出力: "yes" | "no" | "fallback"
+should_trigger_bloom_analysis() {
+    local bloom_routing="${1:-off}"
+    local bloom_analysis_required="${2:-false}"
+    local gunshi_available="${3:-yes}"
+
+    # 軍師未起動 → Phase 2フォールバック
+    if [[ "$gunshi_available" = "no" ]]; then
+        echo "fallback"
+        return 0
+    fi
+
+    case "$bloom_routing" in
+        auto)
+            echo "yes"
+            ;;
+        manual)
+            if [[ "$bloom_analysis_required" = "true" ]]; then
+                echo "yes"
+            else
+                echo "no"
+            fi
+            ;;
+        off|*)
+            echo "no"
+            ;;
+    esac
+}
+
+# =============================================================================
+# Dynamic Model Routing — Issue #53 Phase 4
+# 品質フィードバック蓄積・集計
+# =============================================================================
+
+# append_model_performance(yaml_path, task_id, task_type, bloom_level, model_used, qc_result, qc_score)
+# model_performance.yamlにQC結果を1行追記
+# 出力: なし。exit code 0=成功, 1=失敗
+append_model_performance() {
+    local yaml_path="$1"
+    local task_id="$2"
+    local task_type="$3"
+    local bloom_level="$4"
+    local model_used="$5"
+    local qc_result="$6"
+    local qc_score="$7"
+
+    "$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
+import yaml, sys, os
+from datetime import datetime, timezone
+
+yaml_path = '${yaml_path}'
+entry = {
+    'task_id': '${task_id}',
+    'task_type': '${task_type}',
+    'bloom_level': int('${bloom_level}'),
+    'model_used': '${model_used}',
+    'qc_result': '${qc_result}',
+    'qc_score': float('${qc_score}'),
+    'timestamp': datetime.now(timezone.utc).isoformat()
+}
+
+try:
+    if os.path.exists(yaml_path):
+        with open(yaml_path) as f:
+            doc = yaml.safe_load(f) or {}
+    else:
+        doc = {}
+
+    if 'history' not in doc or not isinstance(doc.get('history'), list):
+        doc['history'] = []
+
+    doc['history'].append(entry)
+
+    with open(yaml_path, 'w') as f:
+        yaml.dump(doc, f, default_flow_style=False, allow_unicode=True)
+except Exception as e:
+    print(f'error: {e}', file=sys.stderr)
+    sys.exit(1)
+" 2>/dev/null
+}
+
+# get_model_performance_summary(yaml_path, task_type, bloom_level)
+# task_type×bloom_level別の集計を返す
+# 出力: "total:N pass:M fail:F pass_rate:R"
+get_model_performance_summary() {
+    local yaml_path="$1"
+    local task_type="$2"
+    local bloom_level="$3"
+
+    "$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
+import yaml, sys, os
+
+yaml_path = '${yaml_path}'
+task_type = '${task_type}'
+bloom_level = int('${bloom_level}')
+
+try:
+    if not os.path.exists(yaml_path):
+        print('total:0 pass:0 fail:0 pass_rate:0.00')
+        sys.exit(0)
+
+    with open(yaml_path) as f:
+        doc = yaml.safe_load(f) or {}
+
+    history = doc.get('history', [])
+    filtered = [h for h in history
+                if h.get('task_type') == task_type
+                and h.get('bloom_level') == bloom_level]
+
+    total = len(filtered)
+    if total == 0:
+        print('total:0 pass:0 fail:0 pass_rate:0.00')
+        sys.exit(0)
+
+    pass_count = sum(1 for h in filtered if h.get('qc_result') == 'pass')
+    fail_count = total - pass_count
+    pass_rate = round(pass_count / total, 2)
+
+    print(f'total:{total} pass:{pass_count} fail:{fail_count} pass_rate:{pass_rate}')
+except Exception as e:
+    print('total:0 pass:0 fail:0 pass_rate:0.00')
+" 2>/dev/null
+}

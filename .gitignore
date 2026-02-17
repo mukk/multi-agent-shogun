@@ -99,6 +99,10 @@
 !saytask/
 !saytask/streaks.yaml.sample
 
+# Reports (requirements docs only — other reports may contain secrets)
+!reports/
+!reports/requirements_*.md
+
 # Docs
 !docs/
 !docs/philosophy.md
@@ -146,6 +150,10 @@
 !skills/wp-picture-webp-auditor/SKILL.md
 =======
 >>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
+
+# Test specs
+!tests/specs/
+!tests/specs/*.md
 
 # Tests
 !tests/
