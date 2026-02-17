@@ -99,9 +99,17 @@ for task in tasks:
     # got = wait_for_gunshi_response(task_id)  # 実装が必要
 
     # *** ローカル検証モード: Claudeに直接問い合わせる（claude CLIが必要）***
+    # claude CLIのパスを動的に解決（PATH未設定環境対応）
+    claude_cmd = subprocess.run(['which', 'claude'], capture_output=True, text=True).stdout.strip()
+    if not claude_cmd:
+        import glob as _glob
+        candidates = _glob.glob(os.path.expanduser('~/.local/bin/claude')) + \
+                     _glob.glob(os.path.expanduser('~/.npm-global/bin/claude')) + \
+                     _glob.glob('/usr/local/bin/claude')
+        claude_cmd = next((c for c in candidates if os.path.isfile(c)), 'claude')
     try:
         result = subprocess.run(
-            ['claude', '-p', f'''このタスクの認知レベル（Bloomの分類法、1-6）を数値1つで答えよ。
+            [claude_cmd, '-p', f'''このタスクの認知レベル（Bloomの分類法、1-6）を数値1つで答えよ。
 説明不要、数値のみ返せ。
 
 タスク説明:
