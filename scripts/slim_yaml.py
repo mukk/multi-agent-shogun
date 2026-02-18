@@ -52,10 +52,12 @@ def slim_shogun_to_karo():
         return True
 
     data = load_yaml(shogun_file)
-    if not data or 'queue' not in data:
+    # Support both 'commands' and 'queue' keys for backwards compatibility
+    key = 'commands' if 'commands' in data else 'queue'
+    if not data or key not in data:
         return True
 
-    queue = data.get('queue', [])
+    queue = data.get(key, [])
     if not isinstance(queue, list):
         print("Error: queue is not a list", file=sys.stderr)
         return False
@@ -79,12 +81,12 @@ def slim_shogun_to_karo():
     archive_timestamp = get_timestamp()
     archive_file = archive_dir / f'shogun_to_karo_{archive_timestamp}.yaml'
 
-    archive_data = {'queue': archived}
+    archive_data = {key: archived}
     if not save_yaml(archive_file, archive_data):
         return False
 
     # Update main file with active commands only
-    data['queue'] = active
+    data[key] = active
     if not save_yaml(shogun_file, data):
         print(f"Error: Failed to update {shogun_file}, but archive was created", file=sys.stderr)
         return False
