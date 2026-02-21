@@ -205,6 +205,75 @@ setup() {
 # 冪等性テスト
 # =============================================================================
 
+# =============================================================================
+# Codex /clear → /new 変換テスト
+# =============================================================================
+# Codex CLIは/clearでセッション終了するため、AGENTS.mdおよびcodex-*.mdで
+# /clearが命令として残存していないことを検証する。
+# 比較表や変換説明の文脈での/clear言及はOK。
+
+@test "codex-clear: AGENTS.md has no /clear Recovery section" {
+    # /clear Recoveryは/new Recoveryに変換されるべき
+    run grep -c "## /clear Recovery" "$PROJECT_ROOT/AGENTS.md"
+    [ "$output" = "0" ]
+}
+
+@test "codex-clear: AGENTS.md has /new Recovery section" {
+    grep -q "## /new Recovery" "$PROJECT_ROOT/AGENTS.md"
+}
+
+@test "codex-clear: AGENTS.md has no 'Forbidden after /clear'" {
+    run grep -c "Forbidden after /clear" "$PROJECT_ROOT/AGENTS.md"
+    [ "$output" = "0" ]
+}
+
+@test "codex-clear: AGENTS.md has no 'sends \`/clear\` + Enter via send-keys' (unconverted)" {
+    # 変換済みは「sends /new + Enter」になっているべき
+    run grep -c 'sends `/clear` + Enter via send-keys$' "$PROJECT_ROOT/AGENTS.md"
+    [ "$output" = "0" ]
+}
+
+@test "codex-clear: AGENTS.md has no 'delivers \`/clear\` to the agent' (unconverted)" {
+    # 変換済みは「delivers /new to the agent」になっているべき
+    run grep -c 'delivers `/clear` to the agent →' "$PROJECT_ROOT/AGENTS.md"
+    [ "$output" = "0" ]
+}
+
+@test "codex-clear: AGENTS.md has no '/clear wipes old context'" {
+    run grep -c '`/clear` wipes old context' "$PROJECT_ROOT/AGENTS.md"
+    [ "$output" = "0" ]
+}
+
+@test "codex-clear: codex-ashigaru.md has no bare '/clear' in escalation table" {
+    # 比較表(codex_tools.md由来)以外で/clearが命令として現れないこと
+    # エスカレーション行に「/clear sent」があればNG
+    run grep -c '`/clear` sent (max once' "$OUTPUT_DIR/codex-ashigaru.md"
+    [ "$output" = "0" ]
+}
+
+@test "codex-clear: codex-ashigaru.md protocol uses CLI-neutral context reset" {
+    # protocol.mdのclear_command行がCLI中立表現になっていること
+    grep -q "context reset command via send-keys" "$OUTPUT_DIR/codex-ashigaru.md"
+}
+
+@test "codex-clear: codex-karo.md has no bare '/clear' in redo protocol" {
+    # Redo Protocolで「delivers /clear to the agent →」がそのまま残っていないこと
+    run grep -c 'delivers `/clear` to the agent →' "$OUTPUT_DIR/codex-karo.md"
+    [ "$output" = "0" ]
+}
+
+@test "codex-clear: codex-gunshi.md protocol uses CLI-neutral context reset" {
+    grep -q "context reset command via send-keys" "$OUTPUT_DIR/codex-gunshi.md"
+}
+
+@test "codex-clear: codex-shogun.md protocol uses CLI-neutral context reset" {
+    grep -q "context reset command via send-keys" "$OUTPUT_DIR/codex-shogun.md"
+}
+
+# =============================================================================
+# 冪等性テスト
+# =============================================================================
+
 @test "idempotent: second build produces identical output" {
     # 1st build
     bash "$BUILD_SCRIPT" > /dev/null 2>&1
