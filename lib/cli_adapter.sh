@@ -143,7 +143,7 @@ build_cli_command() {
             if [[ -n "$model" ]]; then
                 cmd="$cmd --model $model"
             fi
-            cmd="$cmd --dangerously-bypass-approvals-and-sandbox --no-alt-screen"
+            cmd="$cmd --search --dangerously-bypass-approvals-and-sandbox --no-alt-screen"
             echo "$cmd"
             ;;
         copilot)
