@@ -166,8 +166,7 @@ while true; do
             continue
         fi
 
-        # Auto-reply acknowledgement
-        bash "$SCRIPT_DIR/scripts/ntfy.sh" "📱受信: $MSG"
+        # Auto-reply removed — shogun replies directly after processing.
 
         # Wake shogun via inbox (ntfy処理は将軍が直接受信)
         bash "$SCRIPT_DIR/scripts/inbox_write.sh" shogun \
