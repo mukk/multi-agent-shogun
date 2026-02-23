@@ -1,24 +1,2313 @@
 queue:
-  - id: cmd_091
-    timestamp: "2026-02-09T10:30:59"
-    command: "neo_shogiのunused importsを全て削除せよ"
+  - id: cmd_158
+    timestamp: "2026-02-22T00:00:00"
+    purpose: "neo_shogiアプリで囲碁（Go）を遊べるようにする。cmd_157で構築したGame typeclassを活用し、囲碁のGameインスタンス＋フロントエンドUIを実装する"
+    acceptance_criteria:
+      - "src/Game/Go.hs に Game Go インスタンスが実装されている（9路・13路・19路盤対応）"
+      - "囲碁の基本ルールが正しく動作する: 着手、石の捕獲（呼吸点計算）、コウ禁止、自殺手禁止"
+      - "対局終了判定がある（連続パス）。中国ルール方式の地計算（簡易版で可）"
+      - "APIエンドポイントが追加されている（新規対局開始・着手・パス・投了・終局計算）"
+      - "フロントエンドに囲碁ボードUI（格子線＋星＋石描画）が実装されている"
+      - "WelcomeScreen/GameSettingsから囲碁モードを選択して対局開始できる"
+      - "盤サイズ選択（9路/13路/19路）がUIから可能"
+      - "アゲハマ（取り石数）が画面に表示される"
+      - "stack build warningゼロ、npm build成功"
+      - "既存の将棋・TicTacToe機能が壊れていない"
+    command: |
+      neo_shogiに囲碁（Go）を追加せよ。cmd_157で構築した汎用Game typeclassを活用する。
+
+      【バックエンド】
+      1. src/Game/Go.hs — Game Goインスタンス実装
+         - Board: 格子点の状態（Empty/Black/White）の2D配列 + コウ禁止点 + 手番 + パス履歴 + アゲハマ
+         - 呼吸点計算（flood fill）による石の捕獲ロジック
+         - コウルール（直前の局面を再現する着手の禁止）
+         - 自殺手禁止（着手後に自分の石の呼吸点がゼロになる手）
+         - 連続パスで終局 → 中国ルール方式の地計算（Area scoring: 石+地）
+         - 盤サイズはパラメータ化（9/13/19）
+         - encodeBoard: 黒石/白石/空点/直前着手点などのチャネル
+         - actionSpaceSize: boardSize * boardSize + 1（パス）
+
+      2. src/Game/GoHandlers.hs — REST APIハンドラ
+         - POST /api/go/new — 新規対局（盤サイズ指定）
+         - POST /api/go/move — 着手（座標指定）
+         - POST /api/go/pass — パス
+         - POST /api/go/resign — 投了
+         - GET /api/go/score — 終局時の地計算結果
+         - Routes.hs統合
+
+      【フロントエンド】
+      3. GoBoard.tsx — 囲碁盤コンポーネント
+         - 格子線描画（SVGまたはCanvas）、星（hoshi）表示
+         - 黒石・白石のレンダリング
+         - 着手可能点のクリックイベント
+         - 最終着手のマーカー表示
+         - アゲハマ表示、手番表示
+         - パス・投了ボタン
+
+      4. GoGame.tsx — 囲碁対局画面
+         - 盤サイズ選択（9/13/19路）
+         - GameSettings/WelcomeScreenからの導線
+         - App.tsxへのルート追加（/go）
+         - 終局時のスコア表示
+
+      5. i18n対応（ja/en.jsonに囲碁関連キー追加）
+
+      既存のテーマ・レスポンシブ対応も適用すること。
+    project: neo_shogi
+    priority: high
+    status: in_progress
+  - id: cmd_157
+    timestamp: "2026-02-20T09:30:00"
+    purpose: "AlphaZero実装を汎用Game typeclassで抽象化し、将棋以外のゲーム（囲碁・チェス等）にも同じMCTS+学習パイプラインを適用できる基盤を構築する"
+    acceptance_criteria:
+      - "src/Game/Class.hs に Game typeclass が定義されている（legalMoves, applyMove, isTerminal, reward, encodeBoard, decodeAction, actionSpaceSize, boardShape 等のメソッド）"
+      - "src/Game/Shogi.hs に既存将棋ロジックを使った Game Shogi インスタンスが実装されている"
+      - "AlphaZero/MCTS.hs が Game typeclass に対してジェネリックに動作する（Shogi固有の型に依存しない）"
+      - "AlphaZero/Training.hs の自己対戦+学習ループが Game a => a で動作する"
+      - "AlphaZero/Model.hs のNN構造が boardShape/actionSpaceSize から動的に構築される（ハードコード43ch×9×9/11259を除去）"
+      - "既存の将棋AlphaZero機能が壊れていない（stack build warningゼロ）"
+      - "src/Game/TicTacToe.hs にサンプル実装として○×ゲームのGameインスタンスが存在する（テスト用、学習が収束することを確認できるレベル）"
+      - "Game typeclassの設計ドキュメント（コード内Haddockコメント）が各メソッドに付与されている"
+    command: |
+      現在のAlphaZero実装（MCTS.hs, Training.hs, Model.hs, Config.hs等）は将棋専用にハードコードされている。
+      これをGame typeclassで抽象化し、任意のボードゲームに適用可能な汎用RL基盤に進化させよ。
+
+      【Phase 1: Game typeclass定義】
+      src/Game/Class.hs を新規作成:
+      ```haskell
+      class Game g where
+        type Board g        -- 盤面の型
+        type Move g         -- 着手の型
+        type Player g       -- プレイヤーの型
+        initialBoard   :: g -> Board g
+        legalMoves     :: Board g -> Player g -> [Move g]
+        applyMove      :: Board g -> Move g -> Board g
+        isTerminal     :: Board g -> Bool
+        winner         :: Board g -> Maybe (Player g)
+        currentPlayer  :: Board g -> Player g
+        encodeBoard    :: Board g -> Player g -> Tensor  -- NN入力テンソル化
+        decodeAction   :: Int -> Move g                  -- actionIndex→Move変換
+        encodeAction   :: Move g -> Int                  -- Move→actionIndex変換
+        actionSpaceSize :: g -> Int                      -- 行動空間サイズ
+        boardShape     :: g -> [Int]                     -- [channels, height, width]
+      ```
+
+      【Phase 2: 将棋Gameインスタンス】
+      src/Game/Shogi.hs:
+      - 既存のShogi.Core, Shogi.Engine.Encode, Shogi.Engine.ActionSpace を活用
+      - Game Shogi インスタンスを実装
+      - encodeBoard = 既存の43ch×9×9エンコード
+      - actionSpaceSize = 11259
+      - 既存の動作を一切壊さないこと
+
+      【Phase 3: AlphaZeroジェネリック化】
+      - MCTS.hs: `search` 関数を `Game g =>` 制約付きに
+      - Training.hs: `selfPlay`, `trainStep` を汎用化
+      - Model.hs: boardShape/actionSpaceSizeからNN構造を動的構築
+      - Config.hs: ゲーム非依存のハイパーパラメータ（探索回数、学習率等）
+
+      【Phase 4: TicTacToeサンプル】
+      src/Game/TicTacToe.hs:
+      - 3×3の○×ゲームをGameインスタンスとして実装
+      - encodeBoard: 3ch×3×3（自分の駒/相手の駒/手番）
+      - actionSpaceSize: 9
+      - テスト: TicTacToeで数世代の学習が回ることを確認
+        （完全解析可能なゲームなので収束が速いはず）
+
+      【重要】
+      - 既存の将棋AlphaZero APIエンドポイント（/api/alphazero/*）は壊すな
+      - Phase 1-2を先に完成させ、Phase 3で段階的にジェネリック化
+      - 型安全性を重視（associated type familiesの活用）
+    project: neo_shogi
+    priority: high
+    status: done
+    dispatched_at: "2026-02-20T08:05:00"
+    completed_at: "2026-02-20T09:00:00"
+    commit: "5fd26e4"
+    subtasks: [subtask_157a, subtask_157b, subtask_157c, subtask_157d, subtask_157_commit]
+  - id: cmd_156
+    timestamp: "2026-02-20T09:00:00"
+    purpose: "対局中に使える定型チャットメッセージ機能を実装し、対人戦・観戦時のコミュニケーションを可能にする"
+    acceptance_criteria:
+      - "対局画面にチャットパネルが表示される（折りたたみ可能）"
+      - "定型文カテゴリ: 挨拶(よろしくお願いします等), 感嘆(好手！/なるほど等), 終局(ありがとうございました/参りました等) の3カテゴリ以上"
+      - "定型文はi18n対応（ja/en）"
+      - "チャット履歴が対局中保持される（localStorageは不要、セッション内のみ）"
+      - "WebSocket未実装のためローカル表示のみ（将来のWS対応を見据えた型定義）"
+      - "stack build warningゼロ、npm run build TSエラーゼロ"
+    command: |
+      対局画面に定型チャットメッセージ機能を追加せよ。
+
+      【BE】
+      - ChatHandlers.hs: チャット定型文マスタAPI（GET /api/chat/phrases）
+      - 定型文カテゴリ: greeting(挨拶), reaction(感嘆), endgame(終局)
+      - 各カテゴリ5-8個の定型文（日本語+英語）
+
+      【FE】
+      - ChatPanel.tsx: 対局画面右側に折りたたみ式チャットパネル
+      - カテゴリタブ切替 → 定型文ボタン → チャット履歴に追加
+      - GameView.tsxへの統合（対局中のみ表示）
+      - 将来のWebSocket対応を見据えたメッセージ型定義（ChatMessage型にsender/timestamp/content）
+    project: neo_shogi
+    priority: low
+    status: done
+    dispatched_at: "2026-02-20T00:10:00"
+    completed_at: "2026-02-20T00:32:00"
+    subtasks: [subtask_156a, subtask_156b, subtask_155_156_commit]
+    commit: "778f109"
+  - id: cmd_155
+    timestamp: "2026-02-20T09:00:00"
+    purpose: "歴史的名局のKIF棋譜コレクションと解説再生機能を実装し、将棋学習コンテンツを充実させる"
+    acceptance_criteria:
+      - "名局一覧画面（/masterpieces）に10局以上の歴史的名局が表示される"
+      - "各名局に対局者名・年代・戦型・概要説明が付与されている"
+      - "名局選択→棋譜再生画面で手順を1手ずつ再生できる（自動再生+手動送り）"
+      - "各手に解説テキストが表示される（主要局面のみでも可）"
+      - "既存のKifuPanel/Board.tsxコンポーネントを再利用している"
+      - "stack build warningゼロ、npm run build TSエラーゼロ"
+    command: |
+      歴史的名局コレクション機能を実装せよ。
+
+      【BE】
+      - MasterpieceHandlers.hs: 名局一覧API（GET /api/masterpieces）+ 個別取得（GET /api/masterpieces/:id）
+      - 名局データ: Haskellソース内に10局以上をハードコード
+        * 対局者名（先手/後手）、年代、戦型、概要説明
+        * KIF形式の棋譜データ（手順リスト）
+        * 主要局面の解説テキスト（moveNumber→commentのMap）
+      - 有名対局例: 升田式石田流の名局、羽生七冠達成の棋譜、藤井聡太の名局等
+        （正確な棋譜が不明な場合は架空の名局でも可、解説の質を重視）
+
+      【FE】
+      - MasterpieceList.tsx: 名局一覧（カード形式、戦型タグ+年代+対局者）
+      - MasterpieceViewer.tsx: 棋譜再生画面
+        * 既存Board.tsx + KifuPanelを再利用
+        * 自動再生ボタン（1手2秒間隔）+ 手動送り/戻し
+        * 右パネルに解説テキスト表示（手に連動してスクロール）
+      - App.tsxに /masterpieces ルート追加
+    project: neo_shogi
+    priority: low
+    status: done
+    dispatched_at: "2026-02-20T00:10:00"
+    completed_at: "2026-02-20T00:32:00"
+    subtasks: [subtask_155a, subtask_155b, subtask_155_156_commit]
+    commit: "d96cf6a"
+  - id: cmd_154
+    timestamp: "2026-02-19T09:00:00"
+    purpose: "接待AI（ギリギリ負ける実力調整型）と最悪手AI（純粋最悪手選択型）を別モードとして明確に分離実装する"
+    acceptance_criteria:
+      - "GameSettings.tsxに3つのAIモード選択肢が存在する: 通常AI / 接待AI（ギリギリ負ける） / 最悪手AI"
+      - "接待AI: 相手の棋力推定（直近N手の平均評価値損失）に基づき、相手より少しだけ弱く指す（evaluationにノイズ+handicap加算）"
+      - "最悪手AI: cmd_150の報酬反転をベースに、searchAllRootMovesで評価値最低の手を常に選択する"
+      - "接待AIは序盤〜中盤はほぼ互角、終盤で相手がやや有利になるよう調整（勝率30-40%目標）"
+      - "最悪手AIは文字通り最悪の手を選び続ける（デバッグ/お笑い用途）"
+      - "stack build warningゼロ、npm run build TSエラーゼロ"
+    command: |
+      cmd_150で実装した「最弱手AI」を2つの明確に異なるAIモードに分離せよ。
+
+      【モード1: 接待AI（Hospitality AI）】
+      - 目的: 初心者が「ギリギリ勝てる」体験を提供
+      - 方式: 相手の棋力を推定し（直近の手の評価値損失平均等）、
+        相手よりわずかに弱く指す。序盤は互角、終盤で相手がやや有利に。
+      - 実装: Search.hsの評価値にhandicap加算（相手棋力に応じて動的調整）
+      - 勝率目標: 30-40%（相手が「ギリギリ勝てた」と感じる水準）
+
+      【モード2: 最悪手AI（Worst Move AI）】
+      - 目的: 最悪の手を打つAI（お笑い/デバッグ用途）
+      - 方式: cmd_150の報酬反転を活用し、全合法手の中から評価値が最低の手を選択
+      - 既存のsearchAllRootMoves+最悪手選択ロジックをそのまま活用
+
+      【UI】
+      - GameSettings.tsxのAI難易度設定に3モード表示:
+        * 通常AI（既存）
+        * 接待AI（初心者向け — ギリギリ負けてくれる）
+        * 最悪手AI（最悪の手を打つ）
     project: neo_shogi
     priority: medium
-    status: pending
+    status: done
+    dispatched_at: "2026-02-20T08:59:00"
+    completed_at: "2026-02-20T09:20:00"
+    commit: "c134e4a"
+    subtasks: [subtask_154a, subtask_154b, subtask_154_commit]
+  - id: cmd_153
+    timestamp: "2026-02-18T16:00:00"
+    command: "libtorch環境復旧 — stack test実行可能な状態にせよ"
+    project: neo_shogi
+    priority: high
+    status: done
+    dispatched_at: "2026-02-20T08:40:00"
+    completed_at: "2026-02-20T08:55:00"
+    subtasks: [subtask_153a]
+    purpose: "libtorch 2.9.1のlibc10.soが不在でstack testが実行不可になっている問題を解消し、全テストが実行可能な状態に復旧する"
+    acceptance_criteria:
+      - "$HOME/.cache/libtorch/ 配下にlibtorch 2.9.1のライブラリ一式が存在する"
+      - "libc10.so, libtorch.so, libtorch_cpu.so 等の必要な共有ライブラリが全て揃っている"
+      - "stack test が実行でき、テスト結果が表示される（既知の5件failureは許容）"
+      - "LD_LIBRARY_PATH等の環境変数が正しく設定されている"
+      - "復旧手順がreports/に記録されている（再発時の対応用）"
     details: |
-      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）の全Haskellソースから
-      unused imports（未使用インポート）を削除せよ。
+      neo_shogi (パス: /mnt/e/creative/program/neo_shogi) のstack testが
+      libtorch不在で実行不可になっている。
 
-      手順:
-      1. stack build 2>&1 で警告を確認（-Wall が有効な前提）
-      2. "The import of ... is redundant" 警告を全て洗い出す
-      3. 該当するimport文を削除
-      4. 再度 stack build して警告が消えたことを確認
-      5. 全テスト（stack test）が通ることを確認
+      【現在の問題】
+      - パス: $HOME/.cache/libtorch/2.9.1/linux-x86_64/cu130/lib/libc10.so が不在
+      - stack build は成功する（ビルド時にはlibtorch不要 or ヘッダのみで足りる）
+      - stack test は実行時に共有ライブラリをロードするため失敗する
 
-      対象: src/ 配下の全 .hs ファイル
+      【調査・復旧手順】
+      1. 現在のlibtorchディレクトリの状態を確認
+         ls -la $HOME/.cache/libtorch/
+         ls -la $HOME/.cache/libtorch/2.9.1/ (あれば)
 
-      注意:
-      - 削除のみ。コードの動作変更は一切しないこと
-      - qualified import が部分的に使われている場合は、使われている部分だけ残す
-      - コンパイル成功・テスト通過を必ず確認
+      2. hasktorchのlibtorchダウンロードスクリプトがあるか確認
+         - deps/配下やスクリプトを探す
+         - package.yamlやcabalファイルのextra-lib-dirsを確認
+         - hasktorchのドキュメントを参照
+
+      3. libtorchを再取得
+         方法A: hasktorch付属のスクリプトで再ダウンロード
+         方法B: PyTorchサイトからlibtorch C++ distributionを直接取得
+           URL: https://download.pytorch.org/libtorch/cu130/libtorch-cxx11-abi-shared-with-deps-2.9.1%2Bcu130-linux-x86_64.zip
+           (CUDAバージョンはcu130、パスから推測)
+         方法C: pip install torch でPython版を入れてライブラリパスを流用
+
+      4. 取得したライブラリを正しいパスに配置
+         $HOME/.cache/libtorch/2.9.1/linux-x86_64/cu130/lib/ に展開
+
+      5. 環境変数の設定確認
+         LD_LIBRARY_PATH に上記パスが含まれていること
+         stack.yaml や package.yaml の extra-lib-dirs 設定を確認
+
+      6. stack test で動作確認
+         既知の5件failure以外に新規failureがないこと
+
+      【注意】
+      - D001-D008の破壊的操作禁止（sudo使用時は最小限、パス確認必須）
+      - ダウンロードURLが正しいか確認してから取得すること
+      - GPU(RTX 2080 Ti, CUDA)環境であることを考慮
+
+  - id: cmd_152
+    timestamp: "2026-02-18T15:30:00"
+    command: "段位認定テスト（総合棋力判定システム）を実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    dispatched_at: "2026-02-18T10:11:00"
+    completed_at: "2026-02-20T09:38:00"
+    commit: "245bfb8"
+    subtasks: [subtask_152a, subtask_152b, subtask_152_commit]
+    purpose: "詰将棋・次の一手・対局の3種目で総合的に棋力を判定し、段位（級位〜初段〜五段）を認定する機能を実装する"
+    acceptance_criteria:
+      - "新ルート /ranking-test で段位認定テストが利用できる"
+      - "3種目（詰将棋5問、次の一手5問、AI対局1局）を順に実施する試験フローがある"
+      - "各種目のスコアから総合段位を算出するロジックがある（10級〜五段のレンジ）"
+      - "結果画面に段位・各種目スコア・強み弱み分析が表示される"
+      - "結果がlocalStorageに保存され、過去の認定履歴が閲覧できる"
+      - "npm run build成功、既存テスト全PASS、git commit済み"
+    details: |
+      neo_shogi (パス: /mnt/e/creative/program/neo_shogi) に段位認定テストを実装する。
+
+      【試験構成】
+      種目1: 詰将棋（5問）
+      - 既存のTsumeShogi問題DBから難易度別に出題
+      - 制限時間あり（1問3分）
+      - 正解率とタイムで採点
+
+      種目2: 次の一手（5問）
+      - 局面を提示し、最善手を選択させる（3択 or 自由入力）
+      - 既存の評価関数で正解判定
+      - AI推奨手との一致度で採点
+
+      種目3: AI対局（1局）
+      - 中級AI（depth 3-4）と対局
+      - 勝敗 + 悪手率 + 平均評価値差で採点
+
+      【段位算出】
+      - 各種目0-100点、合計300点満点
+      - 0-50: 10-7級、51-100: 6-4級、101-150: 3-1級、
+        151-200: 初段-二段、201-250: 三段-四段、251-300: 五段
+
+      【バックエンド】
+      - API: POST /api/ranking-test/start → テストセッション開始
+      - API: POST /api/ranking-test/submit → 各種目の回答送信+採点
+      - API: GET /api/ranking-test/result/:id → 結果取得
+
+      【フロントエンド】
+      - RankingTest.tsx: メイン画面（ステップウィザード形式）
+      - RankingResult.tsx: 結果表示（レーダーチャート等）
+      - App.tsx: /ranking-test ルート追加
+
+  - id: cmd_151
+    timestamp: "2026-02-18T15:00:00"
+    command: "詰将棋エディタ（手動問題作成・共有）を実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    dispatched_at: "2026-02-18T09:52:00"
+    completed_at: "2026-02-18T10:11:00"
+    purpose: "ユーザーが自由に局面を配置して詰将棋問題を作成し、URLで共有できるエディタを実装する"
+    acceptance_criteria:
+      - "新ルート /tsume/editor で詰将棋エディタが利用できる"
+      - "既存の局面エディタ(PositionEditor)のUIを流用・拡張した駒配置ができる"
+      - "正解手順の入力・登録ができる（手動で手順を指定）"
+      - "作成した問題にメタデータ（タイトル、難易度、手数）を設定できる"
+      - "作成した問題がlocalStorageに保存される"
+      - "既存のURL共有機能(url-state-encoder)で問題をURL化して共有できる"
+      - "共有URLから問題を読み込んでTsumeShogiの解答モードで解ける"
+      - "npm run build成功、既存テスト全PASS、git commit済み"
+    details: |
+      neo_shogi (パス: /mnt/e/creative/program/neo_shogi) に詰将棋エディタを実装する。
+
+      【既存資産の活用】
+      - PositionEditor.tsx: 駒配置UI（パレット、盤面クリック配置、SFEN入出力）
+      - TsumeShogi.tsx: 解答モードUI
+      - url-state-encoder: URL共有パターン（cmd_132で実装済み）
+
+      【フロントエンド】
+      新コンポーネント: TsumeEditor.tsx
+      - Step 1: 局面配置（PositionEditorの機能を流用）
+        → 攻め方(先手)の駒と玉方(後手)の駒を配置
+        → 持ち駒も設定可能
+      - Step 2: 正解手順入力
+        → 配置した局面から実際に駒を動かして正解手順を記録
+        → 「この手順で詰み」を確認するバリデーション
+      - Step 3: メタデータ設定
+        → タイトル、難易度(初級/中級/上級)、ヒント文
+      - Step 4: 保存・共有
+        → localStorage保存 + URL生成
+
+      【バックエンド】
+      - API: POST /api/tsume/validate → 局面+手順が本当に詰みかバリデーション
+      - 既存のゲームロジック(Board.hs, Rules.hs)を使って詰み判定
+
+      【共有フロー】
+      作成者: エディタで作成 → URL生成（局面+手順+メタデータをBase64エンコード）
+      解答者: URL開く → /tsume?p=<encoded> → TsumeShogiの解答モードで出題
+
+  - id: cmd_150
+    timestamp: "2026-02-18T14:30:00"
+    command: "最弱手AI（接待将棋AI・報酬反転RL）を実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    dispatched_at: "2026-02-18T09:52:00"
+    completed_at: "2026-02-18T10:11:00"
+    purpose: "既存AlphaZero基盤の報酬を反転させ、自然に負ける接待将棋AIを学習・対局可能にする"
+    acceptance_criteria:
+      - "AlphaZero自己対戦の報酬符号を反転するモード（invertReward）が追加されている"
+      - "反転報酬で学習したモデルを保存・読込できる"
+      - "対局設定画面で「接待モード」（最弱AI）を選択できる"
+      - "接待AIは合法手のみを指し、あからさまな自殺手ではなく自然に形勢を悪化させる"
+      - "既存の強いAIモードと切り替え可能"
+      - "stack build warning 0、npm run build成功、既存テスト全PASS、git commit済み"
+    details: |
+      neo_shogi (パス: /mnt/e/creative/program/neo_shogi) に最弱手AI（接待将棋AI）を実装する。
+
+      【原理】
+      既存AlphaZero基盤(cmd_139-141)の報酬信号を反転する。
+      通常: 勝ち=+1, 負け=-1 → 反転: 勝ち=-1, 負け=+1
+      MCTSのPUCT選択で最低評価の手を選ぶのではなく、
+      「負けるように最適化された方策ネットワーク」を学習させる。
+      これにより、不自然な即死手ではなく、徐々に形勢を悪くする自然な弱さを実現。
+
+      【バックエンド】
+      - AlphaZero/Config.hs: invertReward フラグ追加
+      - AlphaZero/Training.hs: 報酬反転ロジック（符号を反転するだけ）
+      - MCTS.hs: 反転モデル使用時のノード選択は通常通り（モデル自体が弱い手を高評価する）
+      - API: /api/game/:id/ai-move に aiMode パラメータ追加（"strong" | "weakest"）
+      - 反転学習済みモデルは models/weakest/ に保存
+
+      【フロントエンド】
+      - GameSettings.tsx: AIモード選択に「接待モード（初心者向け）」追加
+      - AI対局開始時に aiMode を送信
+
+      【学習手順】
+      1. 既存の学習パイプラインで invertReward=true で自己対戦
+      2. 数世代（3-5世代）学習させれば十分な弱さになる
+      3. 学習済みモデルを models/weakest/ に保存
+
+      【既存AIアーキタイプとの関係】
+      cmd_130のAIアーキタイプ（標準/守り重視/攻め重視/ランダム）に加えて、
+      5つ目のアーキタイプとして「接待」を追加する形が自然。
+
+  - id: cmd_149
+    timestamp: "2026-02-18T14:00:00"
+    command: "悪手自動マーカー（形勢急落検出+棋譜ハイライト）を実装せよ"
+    project: neo_shogi
+    priority: high
+    status: done
+    dispatched_at: "2026-02-18T09:52:00"
+    completed_at: "2026-02-18T10:11:00"
+    dispatched_at: "2026-02-18T09:52:00"
+    purpose: "対局中・感想戦で形勢が急落した手に自動で悪手マーカーを付与し、棋譜パネルと形勢グラフ上でハイライト表示する"
+    acceptance_criteria:
+      - "各手の評価値差分を計算し、閾値（例: -200cp以上の急落）を超えた手を悪手と判定するロジックがある"
+      - "棋譜パネル(KifuPanel)で悪手マーカー付きの手が視覚的に区別される（色・アイコン等）"
+      - "形勢グラフ(既存recharts)上で悪手ポイントがマーカー表示される"
+      - "感想戦(ReviewMode)で悪手の手に移動すると、AI推奨手との比較が表示される"
+      - "悪手判定の閾値が設定可能（ハードコードではない）"
+      - "npm run build成功、既存テスト全PASS、git commit済み"
+    details: |
+      neo_shogi (パス: /mnt/e/creative/program/neo_shogi) に悪手自動検出+マーカー表示を実装する。
+
+      【バックエンド】
+      - 既存の評価関数(Eval.hs)を使い、各手の前後で評価値差分を計算
+      - 閾値超えの手を blunder として MoveHistory に付加情報として保持
+      - API: GET /api/game/:id/blunders → 悪手リスト返却（手番号、評価値差、AI推奨手）
+
+      【フロントエンド】
+      - KifuPanel.tsx: 悪手の手番号に .kifu-panel-move--blunder クラス付与（赤系ハイライト）
+      - 形勢グラフ: 悪手ポイントにドットマーカー追加
+      - ReviewMode: 悪手の手でAI推奨手との評価値比較を自動表示
+
+      【既存コンポーネントとの関係】
+      - 感想戦(ReviewMode.tsx)のAI推奨手表示を拡張
+      - ヒートマップ(heatmap)とは独立機能
+      - KifuPanel.tsxの棋譜リストにマーカー追加
+
+  - id: cmd_148
+    timestamp: "2026-02-18T13:30:00"
+    command: "指し手ヒント（対局中リアルタイムAI推奨手表示）を実装せよ"
+    project: neo_shogi
+    priority: high
+    status: done
+    dispatched_at: "2026-02-18T09:30:00"
+    completed_at: "2026-02-18T09:50:00"
+    assigned_to: [ashigaru6, ashigaru4, ashigaru1]
+    git_commit: "0a3b7d0"
+    purpose: "対局中にプレイヤーがヒントボタンを押すとAI推奨手が盤面上に矢印で表示される機能を実装する"
+    acceptance_criteria:
+      - "対局画面にヒントボタンが表示される（設定でON/OFF可能）"
+      - "ヒントボタン押下でAIが推奨手を計算し、盤面上に矢印（from→to）が描画される"
+      - "矢印は一定時間後に自動消去、または次の操作で消える"
+      - "ヒント使用回数がカウントされ、対局情報として記録される"
+      - "AI思考中はローディング表示がある"
+      - "npm run build成功、既存テスト全PASS、git commit済み"
+    details: |
+      neo_shogi (パス: /mnt/e/creative/program/neo_shogi) に対局中ヒント機能を実装する。
+
+      【バックエンド】
+      - API: POST /api/game/:id/hint → AI推奨手1手を返却（from, to, 評価値, 深さ）
+      - 既存のAI探索エンジン(Search.hs)を使用、depth制限付き
+      - ヒント使用回数をGameStateに保持
+
+      【フロントエンド】
+      - GameView.tsx: ヒントボタン追加（💡アイコン、使用回数バッジ）
+      - Board.tsx: SVG矢印オーバーレイ描画（from→toの半透明矢印）
+        → 矢印はSVG <line> or <path> で実装、アニメーション付き
+      - useGameViewState.ts: ヒント状態管理（ローディング、表示タイマー）
+      - 設定パネル(SettingsPanel): ヒント機能ON/OFFトグル追加
+
+      【UX設計】
+      - 矢印色: 青系半透明
+      - 表示時間: 3秒後に自動フェードアウト
+      - 使用制限: 1対局あたりN回（設定可能、デフォルト3回）
+
+  - id: cmd_147
+    timestamp: "2026-02-18T13:00:00"
+    command: "棋譜解説モードを実装せよ"
+    project: neo_shogi
+    priority: high
+    status: done
+    completed_at: "2026-02-18T09:50:00"
+    git_commit: "8ffe416"
+    dispatched_at: "2026-02-18T09:30:00"
+    assigned_to: [ashigaru5, ashigaru2]
+    purpose: "プロ棋譜をインポートし、AI解説テキストを自動生成しながらインタラクティブに再生できるモードを実装する"
+    acceptance_criteria:
+      - "新ルート /kifu/commentary で棋譜解説モードが利用できる"
+      - "KIF/CSA形式の棋譜を読み込み、1手ずつ盤面を進めながらAI解説が表示される"
+      - "各手に対してAI評価（良手/疑問手/悪手）と理由テキストが自動生成される"
+      - "解説は既存の評価関数を使い、前手との評価値差分から自動分類+定型テキスト生成"
+      - "手順ナビゲーション（前後・先頭・末尾）が使える"
+      - "npm run build成功、既存テスト全PASS、git commit済み"
+    details: |
+      neo_shogi (パス: /mnt/e/creative/program/neo_shogi) に棋譜解説モードを実装する。
+
+      【バックエンド】
+      - API: POST /api/kifu/commentary → 棋譜テキストを受け取り、各手にAI解説を付与して返却
+      - 解説生成ロジック:
+        1. 棋譜の各手について、その局面での評価値を計算
+        2. 前手との評価値差分から手の品質を分類:
+           - +100以上の改善 → 好手（良い手です）
+           - -200以上の悪化 → 悪手（ここは〇〇が優りました）
+           - それ以外 → 普通手
+        3. AI推奨手と実際の手が異なる場合、推奨手を併記
+        4. 序盤の定型手（定跡一致）には定跡名を付記
+      - 既存のEval.hs, Search.hs, Joseki.hsを活用
+
+      【フロントエンド】
+      - 新コンポーネント: KifuCommentary.tsx
+        - 左: 盤面（既存Board使用）
+        - 右上: 解説テキスト（手ごとにスクロール）
+        - 右下: 棋譜ナビゲーション（KifuPanel類似）
+      - 既存の棋譜インポート(KifuImport)から解説モードへの導線追加
+      - App.tsx: /kifu/commentary ルート追加
+
+      【解説テキストテンプレート例】
+      - "7六歩 — 定跡手（矢倉）。王の守りを固める第一歩です。"
+      - "5五角 — 好手！評価値+320。この角打ちで攻めの形が完成しました。"
+      - "3三金 — 疑問手。ここは4四銀が優りました（評価値差-180）。"
+
+  - id: cmd_146
+    timestamp: "2026-02-18T12:00:00"
+    command: "neo_shogiリファクタリング — 大型コンポーネント分割 + 共通ユーティリティ抽出"
+    project: neo_shogi
+    priority: high
+    status: done
+    dispatched_at: "2026-02-18T08:30:00"
+    completed_at: "2026-02-18T09:24:00"
+    assigned_to: [ashigaru5, ashigaru2, ashigaru6, ashigaru1]
+    git_commit: ["b65b868", "f0fbbf2"]
+    purpose: "1000行超のモノリスコンポーネントを分割し、重複するコードを共通ユーティリティに抽出して保守性を向上させる"
+    acceptance_criteria:
+      - "JosekiTrainer.tsx(現1158行)が500行以下の複数ファイルに分割されている"
+      - "記法パース関数(PIECE_KANJI_TO_NAME, ROW_KANJI_MAP, parseJosekiNotation)がJosekiTrainer.tsx・JosekiExplorer.tsx・transforms.tsから共通ユーティリティに抽出されている"
+      - "TsumeShogi.tsx(現619行)からlocalStorage管理・ボードビルダーが分離されている"
+      - "AlphaZero.hs(現643行)がConfig/Session/Training/Evaluationの4モジュールに分割されている"
+      - "npm run build が成功する（FE）"
+      - "stack build が warning 0 で成功する（BE）"
+      - "既存テスト(476+件)が全PASS"
+      - "git commitされている"
+    details: |
+      neo_shogi (パス: /mnt/e/creative/program/neo_shogi) のリファクタリング。
+
+      【FE優先度1: 記法パース共通化】
+      JosekiTrainer.tsx, JosekiExplorer.tsx, transforms.ts の3ファイルに
+      PIECE_KANJI_TO_NAME, ROW_KANJI_MAP, parseJosekiNotation が重複している。
+      frontend/src/utils/notation.ts 等に共通ユーティリティとして抽出し、
+      3ファイルからimportに切り替える。
+
+      【FE優先度2: JosekiTrainer.tsx分割】
+      1158行のモノリス。以下に分割:
+      - JosekiProblemSelector (問題選択UI)
+      - JosekiPracticeBoard (練習盤面UI)
+      - JosekiSummary (サマリー表示)
+      - useJosekiTrainer (カスタムフック)
+
+      【FE優先度3: TsumeShogi.tsx分割】
+      619行。以下を分離:
+      - useTsumeProgress (localStorage管理 + 解答状態)
+      - TsumeProblemList (問題一覧)
+      - TsumeSolveMode (解答モード)
+
+      【BE優先度4: AlphaZero.hs分割】
+      643行。以下の4モジュールに分割:
+      - AlphaZero/Config.hs (設定・ハイパーパラメータ)
+      - AlphaZero/Session.hs (セッション管理・STM)
+      - AlphaZero/Training.hs (学習パイプライン)
+      - AlphaZero/Evaluation.hs (モデル評価)
+      元のAlphaZero.hsは再エクスポートモジュールとして残す。
+
+      【注意】
+      - 既存の外部API（import元）を壊さないよう、re-exportで後方互換を維持
+      - 1ファイルずつ分割→ビルド確認→次のファイル、と段階的に進めよ
+
+  - id: cmd_145
+    timestamp: "2026-02-18T11:00:00"
+    command: "承認済みスキル2件を作成せよ"
+    project: multi-agent-shogun
+    priority: medium
+    status: done
+    dispatched_at: "2026-02-18T08:30:00"
+    completed_at: "2026-02-18T08:36:00"
+    assigned_to: [ashigaru3]
+    git_commit: afd01b3
+    purpose: "承認済みスキル化候補2件のSKILL.mdを作成し、skills/ディレクトリに格納する"
+    acceptance_criteria:
+      - "skills/production-rendering-audit/SKILL.md が作成されている"
+      - "skills/wp-picture-webp-auditor/SKILL.md が作成されている"
+      - "既存スキル(url-state-encoder等)と同等のフォーマット（YAMLフロントマター + Overview/When to Use/Instructions/Examples/Guidelines）"
+      - "git commitされている"
+    details: |
+      殿が承認したスキル化候補2件のSKILL.mdを作成する。
+
+      【スキル1: production-rendering-audit】
+      概要: 本番HTML出力のレンダリングパイプライン分析パターン
+      起源: cmd_142（STS本番クロール調査）
+      内容: 本番サイトのHTMLを実取得し、レンダリングに影響する要素を網羅的に分析する。
+      - Lazy loading（プラグイン + ネイティブの二重化検知）
+      - CSS override（!important 競合、プラグイン注入CSSの検出）
+      - srcset 解決（モバイルビューポートでの実効srcset候補計算）
+      - キャッシュレイヤー影響（W3TC等のHTML書き換え検知）
+      - UA別レスポンス差分（PC/モバイルでのHTML差異検出）
+      参考: cmd_142の調査手法（curl UA偽装、picture/source分析、CSS display:none検出等）
+
+      【スキル2: wp-picture-webp-auditor】
+      注意: skills/wordpress-theme-image-audit/SKILL.md が既に存在する。
+      wp-picture-webp-auditor はより特化した内容にすること。
+      概要: WP <picture> タグ WebP実装の監査パターン
+      起源: cmd_144（STSテーマ修正）
+      内容: WordPressの<picture>タグによるWebP配信の実装品質を監査する。
+      - srcset候補のWebPファイル存在確認（file_exists）
+      - Lazy Loading除外マーカー（skip-lazy, data-skip-lazy）の適用確認
+      - CSS競合検出（Tailwind w-fit/h-fitによるレイアウト崩れ）
+      - EWWW/Smush等プラグインのHTML書き換え結果の検証
+      参考: cmd_144の修正内容（w-fit除去、srcset存在チェック、eager引数追加）
+
+      既存スキル skills/url-state-encoder/SKILL.md のフォーマットを参考にすること。
+
+  - id: cmd_144
+    timestamp: "2026-02-16T12:00:00"
+    command: "STS モバイル画像表示問題の修正（テーマ側コード変更）"
+    project: STS
+    priority: high
+    status: done
+    assigned_to: [ashigaru5]
+    dispatched_at: "2026-02-16T02:49:00"
+    completed_at: "2026-02-16T02:58:00"
+    purpose: "cmd_142で特定された3つの複合原因のうち、テーマ側で修正可能な項目を全て修正し、モバイルで画像が正しく表示される状態にする"
+    acceptance_criteria:
+      - "pictureタグのCSS競合が解消されている（Tailwind w-fit/h-fit の影響を無効化）"
+      - "sts_picture_webp()が存在しないWebPサイズをsrcsetに含めないようになっている"
+      - "ファーストビュー画像にEWWW lazy loadingの除外マーカーが付与されている"
+      - "修正後のローカル環境でnpm run build等のビルドが通る（ビルド工程がある場合）"
+      - "修正内容がgit commitされている"
+      - "殿が管理画面で行うべき作業リストが報告書に明記されている"
+    details: |
+      STS（パス: /mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji）のテーマファイルを修正し、
+      モバイルでの画像表示問題を解消せよ。
+
+      cmd_142の報告書（reports/cmd_142_sts_mobile_image_debug.md）を必ず読んでから作業すること。
+
+      【修正1: Tailwind CSS競合の解消】
+      対象: wp-content/themes/STS/assets/css/globals.css
+
+      以下を追加:
+      ```css
+      .square-artwork-container > a picture,
+      .picture-webp {
+        width: 100% !important;
+        height: 100% !important;
+      }
+      ```
+      これにより website-builder プラグインが注入する Tailwind の
+      `w-fit { width: fit-content !important }` を上書きする。
+
+      さらに、可能であれば根本対応も行う:
+      対象: wp-content/themes/STS/inc/shortcodes.php（sts_picture_webp関数内）
+      - <picture> タグに付与されている `w-fit h-fit` クラスを除去
+        （EWWWまたはテーマが付与している。どちらが付けているか調査の上対応）
+
+      【修正2: srcsetのWebP存在チェック強化】
+      対象: wp-content/themes/STS/inc/shortcodes.php（sts_picture_webp関数内）
+
+      現在: <source>のsrcsetにWebP URLを列挙しているが、
+      全サイズバリアントのWebPファイルが存在するか確認していない。
+
+      修正: srcsetの各候補URLについて file_exists() でWebPの存在を確認し、
+      存在しないサイズはsrcsetから除外する。
+
+      ```php
+      // イメージ: srcsetの各エントリを検証
+      // 元の srcset: "xxx-300x300.webp 300w, xxx-1024x1024.webp 1024w, ..."
+      // 300x300.webpが存在しなければ、そのエントリをsrcsetから除外
+      ```
+
+      【修正3: ファーストビュー画像のlazy loading除外マーカー】
+      対象: wp-content/themes/STS/inc/shortcodes.php（sts_picture_webp関数内）
+
+      ファーストビューに表示される画像（最初のN枚）に対して、
+      EWWWのlazy loadingを除外するマーカーを付与する。
+
+      方法: imgタグに `class="skip-lazy"` または `data-skip-lazy="1"` を追加
+      （EWWWはこれらの属性がある画像をlazy loading対象外にする）
+
+      具体的には:
+      - ショートコードに引数を追加するか、最初の表示画像にのみ付与するロジック
+      - または wp_get_attachment_image() の attr に 'class' => 'skip-lazy' を追加
+      - 最低限トップページのファーストビュー画像（above the fold）は即表示にする
+
+      【修正しない項目（殿が管理画面で実施）】
+      以下は足軽が修正するものではなく、殿にWP管理画面で実施していただく:
+      - EWWW Bulk Optimize（WebP再生成）
+      - EWWW Lazy Loading の Exclusions 設定（管理画面からの方が安全）
+      - W3 Total Cache のキャッシュクリア（修正反映のため）
+
+      【報告書に必ず含めること】
+      - 殿が管理画面で行うべき作業の手順リスト（スクリーンショット不要、手順のみ）
+      - 修正前後の <picture> タグ出力例の比較
+      - ローカル環境での動作確認結果
+
+      【注意】
+      - テーマファイルのパスは /mnt/c/Users/SaidR/Local Sites/studiotatsuroshoji/app/public/wp-content/themes/STS/
+      - 本番環境には一切触れない（ローカルのみ修正）
+      - 修正はgit commitすること
+      - テーマの既存動作（PC表示等）を壊さないこと
+
+  - id: cmd_143
+    timestamp: "2026-02-16T11:00:00"
+    command: "承認済みスキル2件を作成せよ"
+    project: multi-agent-shogun
+    priority: medium
+    status: done
+    assigned_to: [ashigaru4]
+    dispatched_at: "2026-02-16T02:25:00"
+    completed_at: "2026-02-16T02:32:00"
+    purpose: "承認済みスキル化候補2件の設計書+SKILL.mdを作成し、skills/ディレクトリに格納する"
+    acceptance_criteria:
+      - "以下2件のスキルが skills/ に作成されている: url-state-encoder, wordpress-theme-image-audit"
+      - "各スキルにSKILL.md（目的・手順・Examples）が含まれる"
+      - "既存スキル(playwright-e2e-scaffold等)のフォーマットに準拠"
+    details: |
+      殿が2件のスキル化候補を承認した。
+      multi-agent-shogun（パス: /mnt/c/tools/multi-agent-shogun）の skills/ ディレクトリに
+      各スキルの設計書+SKILL.mdを作成せよ。
+
+      【対象2件】
+      1. url-state-encoder (cmd_132) — URLパラメータにアプリ状態をBase64エンコード埋め込み。
+         サーバー不要の共有リンク生成パターン。neo_shogiのkifuEncoder.tsが実例。
+      2. wordpress-theme-image-audit (cmd_138) — WPテーマ画像処理の網羅分析パターン。
+         WebP/レスポンシブ/パフォーマンス診断。STSテーマの調査手法が実例。
+
+      既存スキル（skills/playwright-e2e-scaffold/等）を参考にフォーマットを統一すること。
+      足軽1名で十分。空いている足軽に割り当てよ。
+
+  - id: cmd_142
+    timestamp: "2026-02-16T10:00:00"
+    command: "STS本番サイト再クロール: モバイルで画像が表示されない原因を特定せよ"
+    project: STS
+    priority: high
+    status: done
+    assigned_to: [ashigaru2, ashigaru3]
+    dispatched_at: "2026-02-16T01:47:00"
+    completed_at: "2026-02-16T02:08:00"
+    purpose: "studiotatsuroshoji.comでモバイル端末から画像が表示されない問題の原因を特定し、具体的な修正案を提示する"
+    acceptance_criteria:
+      - "モバイルUA（iPhone/Android）でのHTTPレスポンスを実際に取得し、PC UAとの差分を確認している"
+      - "画像が表示されない具体的なページ・画像URLが特定されている"
+      - "原因が明確に特定されている（srcset/sizes設定、CSS media query、lazy loading、viewport、JS依存等）"
+      - "修正案が具体的に提示されている（どのファイルのどの行をどう変えるか）"
+      - "報告書がreports/に保存されている"
+    details: |
+      殿から「モバイルで画像が出ない」との報告あり。
+      cmd_138（前回調査）では「フォールバックで表示される」と結論したが、
+      実際にモバイルで表示されていない。前回の調査が不十分だった可能性がある。
+
+      【重要】前回と違い、今回はモバイルでの「実際の表示」に焦点を当てる。
+      HEAD リクエストの200/404チェックだけでは不十分。
+      実際のHTMLレンダリングに影響する要素を全て調べよ。
+
+      【調査手順】
+
+      1. モバイルUA での全ページHTML取得
+         - User-Agent を iPhone (Safari) と Android (Chrome) に偽装して各ページを取得
+         - PC UA での取得結果と比較（サーバーサイドでUAによる出し分けがあるか）
+         - レスポンスヘッダーも確認（Vary, Content-Type等）
+
+      2. 画像表示に影響する全要素の検査
+         - <picture> / <source> タグの media 属性
+           → モバイル幅で適用される <source> はどれか
+           → その <source> が指す画像URLは実在するか
+         - <img> の srcset と sizes 属性
+           → sizes="17vw" 等がモバイル（375px幅）で何pxに解決されるか
+           → その解像度に対応するsrcset候補は存在するか
+         - CSS による画像の非表示
+           → display:none, visibility:hidden, opacity:0 等がモバイルmedia queryで適用されていないか
+           → overflow:hidden + 高さ0 等の間接的な非表示
+         - JavaScript による遅延読み込み
+           → data-src / data-lazy 等のパターン
+           → IntersectionObserver の設定
+           → JSエラーで読み込みが発火しない可能性
+         - loading="lazy" の挙動
+           → モバイルでviewport外の画像がlazyで読み込まれない可能性
+           → ファーストビュー（above the fold）の画像にlazyが付いていないか
+         - CSS background-image
+           → media queryでモバイル用のbackground-imageが設定されているか
+           → background-image: url() のパスが正しいか
+
+      3. レスポンシブ画像の実効チェック
+         - 各 <picture> タグについて、375px幅のビューポートで
+           実際にどの <source> / srcset候補が選択されるか計算
+         - 選択される画像URLに実際にGETリクエストして200が返るか確認
+         - WebP版とフォールバック版の両方をチェック
+
+      4. テーマコードの再確認
+         - sts_picture_webp() の出力HTMLを実際に確認（前回の分析ではなく実物）
+         - ショートコードの出力キャッシュが古い可能性（キャッシュクリア後の挙動）
+         - W3 Total Cache のページキャッシュがモバイルとPCで分かれているか
+           → モバイル用キャッシュが壊れている可能性
+
+      5. キャッシュ関連の調査
+         - W3TC のページキャッシュ設定（モバイル別キャッシュ or 共通キャッシュ）
+         - CDN設定があるか
+         - .htaccess のキャッシュ設定がモバイルに影響していないか
+         - ブラウザキャッシュとサーバーキャッシュの切り分け
+
+      6. ローカル環境との比較
+         - ローカル（C:\Users\SaidR\Local Sites\studiotatsuroshoji）のテーマファイルと
+           本番のHTMLレスポンスを比較
+         - テーマ更新が本番に反映されていない可能性
+
+      【報告書に含めること】
+      - 問題の再現条件（どのページ、どの画像、どのデバイス幅）
+      - 原因の特定（コード/設定/キャッシュ/サーバー のどれか）
+      - 修正案（具体的な変更内容）
+      - 前回cmd_138の結論との差分（なぜ前回見逃したか）
+
+  - id: cmd_141
+    timestamp: "2026-02-15T13:00:00"
+    command: "AlphaZero MCTS探索エンジン + 自己対戦学習パイプラインを実装せよ"
+    project: neo_shogi
+    priority: high
+    status: done
+    completed_at: "2026-02-16T16:57:00"
+    depends_on: cmd_140
+    assigned_to: [ashigaru6, ashigaru7, ashigaru2, ashigaru5, ashigaru4, ashigaru1]
+    decomposition: "5分割3フェーズ+commit: P1(141a/b/c)→P2(141d)→P3(141e)→commit(141f)"
+    purpose: "MCTSエンジンとNN学習パイプラインを実装し、自己対戦→学習→世代更新のサイクルを回せる状態にする"
+    acceptance_criteria:
+      - "MCTS.hsが実装され、NNモデルを評価関数としてモンテカルロ木探索が動作する"
+      - "1手あたり800シミュレーションのMCTS探索が5秒以内に完了する（GPU使用時）"
+      - "MCTSの各ノードでNN推論（方策+価値）が正しく呼ばれている"
+      - "自己対戦ループ: MCTSによる自己対戦を実行し、(盤面, MCTS方策分布, 勝敗)を記録できる"
+      - "学習ループ: 自己対戦データからNNを訓練（クロスエントロピー+MSE損失）できる"
+      - "世代管理: 新世代モデルの保存・読込・旧世代との検証対局が動作する"
+      - "既存のミニマックスAIに影響がない（AlphaZeroエンジンは別モジュールとして共存）"
+      - "FEにAlphaZero学習パネル（学習開始/進捗表示/世代一覧）がある"
+      - "stack build成功・既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）にAlphaZero方式の
+      MCTS探索エンジンと学習パイプラインを実装せよ。
+      cmd_140（基盤構築）の完了が前提。
+
+      【バックエンド】
+
+      1. src/Shogi/Engine/MCTS.hs 新設
+         - MCTSNode: 局面、訪問回数N、累積価値W、方策確率P、子ノード
+         - select: UCB1スコア（Q + c_puct * P * sqrt(N_parent) / (1+N)）で最良子ノードを選択
+         - expand: 葉ノードで合法手を展開し、NNで(方策, 価値)を推論
+         - backpropagate: 葉→ルートに価値を逆伝播
+         - search: N回シミュレーション実行し、ルートの訪問回数分布を返す
+         - selectMove: 温度パラメータτで最終手を選択
+           （τ=1: 訪問回数に比例した確率、τ→0: 最多訪問手を確定選択）
+         - c_puct = 1.5（探索と利用のバランス定数）
+         - 合法手マスク: NN方策出力のうち非合法手を0にして再正規化
+
+      2. src/Shogi/Engine/NeuralNet/Train.hs 新設
+         - TrainingData: [(盤面テンソル, MCTS方策分布, 勝敗ラベル)]
+         - trainStep: 1バッチの訓練（forward → loss → backward → optimizer.step）
+         - loss = crossEntropy(policy_pred, policy_target)
+                + MSE(value_pred, value_target)
+                + λ * L2正則化（λ=1e-4）
+         - trainEpoch: 全データを通して1エポック学習
+         - オプティマイザ: SGD with momentum(0.9) or AdamW
+
+      3. src/Shogi/Engine/AlphaZero.hs 新設（統合モジュール）
+         - selfPlayGame: MCTSで1局自己対戦し、訓練データを生成
+           * 序盤30手はτ=1（探索的）、以降τ=0.1（決定的）
+           * 各手番で800シミュレーション
+           * ディリクレノイズ: ルートの方策にDir(0.03)を25%混合（多様性確保）
+         - selfPlayBatch: N局分の自己対戦を実行（forkIOで並列可）
+         - trainFromData: 自己対戦データでNNを訓練
+         - evaluateGeneration: 新世代 vs 旧世代をK局対戦し、勝率55%以上で採用
+         - runCycle: 自己対戦→学習→検証の1サイクルを実行
+
+      4. 既存モジュールとの統合
+         - Generation.hs: NNモデルの重みも世代データとして保存・読込
+         - SelfPlay.hs: AlphaZeroモードの自己対戦を追加（既存ミニマックスは維持）
+         - Game.hs: 通常対局で「AlphaZero AI」を選択可能にする
+           （AIエンジン選択: ミニマックス / AlphaZero）
+
+      5. API
+         - POST /api/alphazero/train — 学習サイクル開始（自己対戦局数、エポック数）
+         - GET /api/alphazero/status — 学習進捗（フェーズ、進捗率、現世代）
+         - GET /api/alphazero/generations — AlphaZero世代一覧
+         - POST /api/alphazero/play — AlphaZero AIとの対局開始
+
+      【フロントエンド】
+
+      6. AlphaZeroPanel.tsx 新設
+         - 学習設定UI（自己対戦局数、MCTS シミュレーション数、学習率、エポック数）
+         - 学習進捗表示（フェーズ: 自己対戦中/学習中/検証中、プログレスバー）
+         - 世代一覧テーブル（世代番号、訓練局数、検証勝率、日時）
+         - 「AlphaZero AIと対戦」ボタン
+      7. GameSettings: AIエンジン選択（ミニマックス / AlphaZero）を追加
+      8. WelcomeScreen: 「AlphaZero学習」への導線追加
+      9. App.tsx: /alphazero ルート追加
+
+      【注意】
+      - 既存のミニマックスAI（Search.hs, Evaluation.hs）は一切変更しない
+      - AlphaZeroは完全に別モジュールとして共存させる
+      - 初期NNモデルはランダム重みから開始（事前学習なし）
+      - GPU推論を前提とする（cmd_139のPoC環境設定を活用）
+      - モデル重みはdata/alphazero/models/に保存
+      - 自己対戦データはdata/alphazero/games/に保存
+
+  - id: cmd_140
+    timestamp: "2026-02-15T13:00:00"
+    command: "AlphaZero基盤構築: hasktorch統合 + テンソル変換 + ネットワーク定義"
+    project: neo_shogi
+    priority: high
+    status: done
+    completed_at: "2026-02-16T18:00:00"
+    assigned_to: [ashigaru6, ashigaru5, ashigaru1]
+    purpose: "neo_shogi本体にhasktorchを統合し、盤面→テンソル変換とAlphaZeroニューラルネットワーク定義を実装して、MCTS+学習パイプラインの土台を作る"
+    acceptance_criteria:
+      - "stack.yamlのresolverがLTS-22.43に更新されている"
+      - "package.yamlにhasktorch依存が追加されている"
+      - "stack buildで既存456テスト全合格+warningゼロ"
+      - "GameState→9x9x43テンソル変換が実装され、単体テストが通る"
+      - "初期局面のテンソル変換結果が正しい（歩の位置、王の位置等が正確）"
+      - "AlphaZeroネットワーク（ResNet5層+方策ヘッド+価値ヘッド）が定義されている"
+      - "ランダム重みのNNで順伝播が動作する（入力9x9x43→方策11259次元+価値スカラー）"
+      - "GPU上でNNの順伝播が動作する"
+      - "行動空間エンコーディング（Move↔インデックス変換）が実装されている"
+      - "npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）にAlphaZero基盤を構築せよ。
+      cmd_137/139のPoC成果（poc/hasktorch/）を本体に統合する。
+
+      【Step 3: hasktorch依存の追加】
+
+      1. stack.yaml
+         - resolver を lts-22.43 に更新（現在 lts-22.7）
+         - extra-deps に hasktorch 関連パッケージを追加
+         - cmd_139のPoC環境（poc/hasktorch/stack.yaml）の設定を参考にする
+         - GPU版libtorchの設定もcmd_139から引き継ぐ
+
+      2. package.yaml
+         - dependencies に hasktorch を追加
+         - 必要に応じて libtorch-ffi 等も追加
+
+      3. ビルド検証
+         - stack build で既存コード+hasktorch依存が全てビルドできるか確認
+         - 既存456テストが全合格することを確認
+         - resolverの変更で既存依存パッケージに影響がないか確認
+         - 問題があれば解決してからStep 4に進む
+
+      【Step 4: テンソル変換モジュール】
+
+      4. src/Shogi/Engine/NeuralNet/Encode.hs 新設
+         - gameStateToTensor :: GameState -> Tensor
+           * 盤上の駒: 14駒種×2色=28チャネル（各駒がいるマス=1）
+           * 持ち駒: 7種×2色=14チャネル（全マスを所持数/最大数で埋める）
+           * 手番: 1チャネル（先手番=全1、後手番=全0）
+           * 合計43チャネル、9×9×43のテンソル
+         - tensorToFeatures: デバッグ用の逆変換（テンソル→読みやすい形式）
+         - 単体テスト:
+           * 初期局面のテンソル: 歩9枚が正しい位置にあるか
+           * 持ち駒ありの局面: 持ち駒チャネルが正しいか
+           * 後手番の局面: 手番チャネルが0か
+
+      5. src/Shogi/Engine/NeuralNet/ActionSpace.hs 新設
+         - moveToIndex :: Move -> Int
+           盤上移動: 移動元(0-80)×方向距離(66通り)×成不成(2)=最大10,692
+           持ち駒打ち: 7種×81マス=567
+           合計ACTION_SIZE=11,259
+         - indexToMove :: Int -> GameState -> Maybe Move（逆変換+合法性チェック）
+         - legalMoveMask :: GameState -> [Move] -> Tensor
+           合法手のインデックスを1、非合法を0としたマスクテンソル
+
+      【ネットワーク定義】
+
+      6. src/Shogi/Engine/NeuralNet/Model.hs 新設
+         - AlphaZeroNet: 共有ResNet + 方策ヘッド + 価値ヘッド
+         - 共有部: Conv2d(43,128,3,pad1)→BN→ReLU + ResBlock×5
+         - ResBlock: Conv→BN→ReLU→Conv→BN→残差接続→ReLU
+         - 方策ヘッド: Conv2d(128,2,1)→BN→ReLU→Flatten→FC(162,11259)→Softmax
+         - 価値ヘッド: Conv2d(128,1,1)→BN→ReLU→Flatten→FC(81,256)→ReLU→FC(256,1)→Tanh
+         - forward :: AlphaZeroNet -> Tensor -> (Tensor, Tensor)
+           入力: バッチ×43×9×9 → 出力: (方策 バッチ×11259, 価値 バッチ×1)
+         - initModel :: IO AlphaZeroNet（ランダム重みで初期化）
+         - saveModel / loadModel: モデルの保存・読込
+
+      7. 動作確認テスト
+         - ランダム重みモデルで初期局面を推論
+         - バッチ推論（複数局面を一度に）
+         - GPU上での推論
+
+      【注意】
+      - 既存のEvaluation.hs, Search.hsは変更しない
+      - NeuralNetモジュールは src/Shogi/Engine/NeuralNet/ に格納（名前空間を分ける）
+      - cmd_139のPoC環境（poc/hasktorch/）から設定・知見を引き継ぐこと
+      - BatchNormに既知の精度問題がある場合はLayerNormで代替可
+      - hasktorchのAPIが不明な場合はGitHub issuesやソースを確認
+
+  - id: cmd_139
+    timestamp: "2026-02-15T12:30:00"
+    command: "CUDA Toolkitインストール + hasktorch GPU版ビルド検証"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: [ashigaru6]
+    note: "Full Go判定！hasktorch GPU版ビルド成功(107+71モジュール)、GPU PoC 5項目全PASS。CUDA ToolkitシステムインストールなしでGPU環境構築(libtorch cu130バンドル+ローカルdeb展開)。512×512行列積GPU4.8倍高速。AlphaZero本実装に即座に着手可能。報告書: neo_shogi/reports/cmd_139_cuda_gpu_verification.md"
+    purpose: "WSL2にCUDA Toolkitを正しくインストールし、hasktorchのGPU版ビルド+GPU上でのNN推論動作を確認して、AlphaZero本実装へのFull Go判定を出す"
+    acceptance_criteria:
+      - "CUDA Toolkitがインストールされ、nvcc --versionで確認できる"
+      - "hasktorchがGPU(CUDA)バックエンドでビルドできる"
+      - "GPUテンソル生成（cuda上にテンソルを配置）が動作する"
+      - "GPU上で簡易CNN順伝播が動作する"
+      - "GPU上で訓練ループ（forward→loss→backward→step）が動作する"
+      - "CPU版との速度比較結果が報告されている"
+      - "Full Go / Conditional NoGoの最終判定が報告書に記載されている"
+    details: |
+      殿がCUDA Toolkitインストールを試みたが、NVIDIAリポジトリ未追加のため
+      E: Unable to locate package cuda-toolkit-13-0 エラーが発生した。
+      殿より「そっちで進めていいよ」と許可を得ている。
+
+      【Phase 1: CUDA Toolkitインストール】
+      1. NVIDIAのWSL2用CUDAリポジトリを追加
+         ```
+         wget https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-keyring_1.1-1_all.deb
+         sudo dpkg -i cuda-keyring_1.1-1_all.deb
+         sudo apt-get update
+         ```
+      2. CUDA Toolkitをインストール
+         ```
+         sudo apt-get install -y cuda-toolkit
+         ```
+         ※ パッケージ名に注意: nvidia-smiの「CUDA 13.0」はドライバー対応上限であり、
+         実際のCUDA Toolkitバージョンは12.x系の可能性がある。
+         `apt-cache search cuda-toolkit` で利用可能なバージョンを確認すること。
+         ※ `cuda` や `cuda-drivers` メタパッケージは絶対に使わない
+         （WSL2のLinuxドライバーと競合する）
+      3. インストール確認
+         ```
+         nvcc --version
+         ls /usr/local/cuda/lib64/libcudart*
+         ```
+
+      【sudoが使えない場合】
+      足軽がsudo実行時にパスワードを求められて進めない場合:
+      - 実行すべきコマンドを正確に報告書に記載して報告せよ
+      - 殿が手動でコマンドを実行した後、Phase 2に進む
+
+      【Phase 2: hasktorch GPU版ビルド検証】
+      cmd_137のPoC環境（/mnt/e/creative/program/neo_shogi/poc/hasktorch/）を使用。
+
+      1. GPU版libtorchへの切替
+         - stack.yaml または環境変数でCUDA版libtorchを指定
+         - hasktorchのドキュメント/issuesでGPU版の設定方法を確認
+      2. GPU動作PoC
+         - CUDAデバイスの検出確認
+         - GPUテンソル生成（Torch.toCUDA / Torch.toDevice）
+         - GPU上でCNN順伝播
+         - GPU上で訓練ループ
+      3. CPU vs GPU速度比較
+         - 同一のCNN順伝播を100回実行し、所要時間を比較
+         - 訓練ループ100epochの所要時間を比較
+
+      【Phase 3: 最終判定】
+      - Full Go: GPU版hasktorch動作確認。AlphaZero本実装に進む
+      - Conditional NoGo: GPU版ビルド失敗だがCPU版は動作。
+        → CPU版での学習速度が現実的かを判断材料として報告
+      - NoGo: 致命的問題あり。Python代替案に切替
+
+      【注意】
+      - neo_shogiの既存コードは変更しない
+      - PoC用コードはneo_shogi/poc/hasktorch/に隔離
+      - 報告書はneo_shogi/reports/に保存
+      - sudoは殿の許可済み。ただしcuda-driversメタパッケージは使用禁止
+
+  - id: cmd_138
+    timestamp: "2026-02-15T12:00:00"
+    command: "STS本番サイト全ページクロール+デバイス別画像リンク切れ調査"
+    project: STS
+    priority: high
+    status: done
+    assigned_to: [ashigaru1, ashigaru2, ashigaru5]
+    note: "全完了。画像表示切れなし（フォールバック正常）。本番WebP生成不完全が主要問題: 新規画像WebP全404、古い画像も一部サイズ欠損。原因はテーマコードではなく本番EWWW設定/バルク最適化未実施。修正はWP管理画面操作のみ（コード変更不要）。報告書: reports/cmd_138_sts_image_audit.md"
+    purpose: "studiotatsuroshoji.com の全ページをクロールし、デバイス種別（PC/タブレット/スマホ）によって画像リンクが切れうる箇所を全て洗い出し、原因と修正案を報告する"
+    acceptance_criteria:
+      - "全公開ページのURLリストが作成されている"
+      - "各ページの全画像要素（img, picture, source, background-image, srcset等）が調査されている"
+      - "デバイス別（PC/タブレット/スマホ）で切れうる画像リンクが特定されている"
+      - "各問題の原因（パス不一致、srcset設定ミス、WebP非対応フォールバック欠如、レスポンシブ画像設定不備等）が明記されている"
+      - "修正案が具体的に提示されている（WordPressのどのファイル/設定を変えるか）"
+      - "報告書がreports/に保存されている"
+    details: |
+      STS本番サイト（https://studiotatsuroshoji.com）の全ページをクロールし、
+      デバイスによって画像が表示されない可能性がある箇所を網羅的に調査せよ。
+
+      【調査手順】
+      1. サイトマップ or トップページからリンクを辿り、全公開ページのURLを収集
+         - curl / wget でクロール（本番環境に負荷をかけないよう適度な間隔を空ける）
+         - robots.txtを確認し、クロール許可範囲を把握
+
+      2. 各ページのHTML解析
+         - <img> タグ: src, srcset, sizes 属性の整合性
+         - <picture> タグ: <source> のmedia/type属性とフォールバック<img>
+         - CSS background-image: レスポンシブ対応（media query内のURL）
+         - lazy loading属性（loading="lazy"）の影響
+         - data-src等のJavaScript遅延読み込みパターン
+
+      3. デバイス別チェック観点
+         - PC（1920px幅）: 標準画像パスの有効性
+         - タブレット（768px幅）: srcset/sizes切替時のパス有効性
+         - スマホ（375px幅）: モバイル用画像パスの有効性
+         - Retina（2x, 3x）: 高解像度画像パスの有効性
+         - WebP非対応ブラウザ: <picture>のフォールバック画像の有効性
+
+      4. 画像URL実在チェック
+         - 検出した全画像URLに対してHEADリクエストで存在確認（200/404）
+         - srcsetの各候補URLも全てチェック
+         - WebP版とオリジナル版の両方をチェック
+
+      5. 報告書作成
+         - 問題ページURL、問題画像、原因、影響範囲（どのデバイスで切れるか）
+         - 修正案（WordPress側: functions.php / テーマテンプレート / ACF設定 / プラグイン設定）
+         - 緊急度（現在切れている / 特定条件で切れうる / 潜在リスク）
+
+      【注意】
+      - 本番サイトへのアクセスは読み取りのみ。変更は一切行わない
+      - クロール間隔は最低1秒空ける（サーバー負荷軽減）
+      - STS環境情報: WordPressサイト、EWWW Image Optimizer導入済み、WebPは<picture>タグ方式
+      - ローカル環境パス: C:\Users\SaidR\Local Sites\studiotatsuroshoji（参考用。調査は本番URLに対して行う）
+
+  - id: cmd_137
+    timestamp: "2026-02-14T12:00:00"
+    command: "hasktorch + AlphaZero方式のneo_shogi環境での実現可能性を調査せよ"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: [ashigaru5, ashigaru1, ashigaru6]
+    note: "全完了。Conditional Go判定。hasktorch 0.2.1.8 ビルド成功+4PoC全PASS。RTX 2080 Ti(11GB VRAM)+CUDA 13.0利用可。CUDA Toolkit未インストール→インストール+GPU版hasktorchビルドでFull Go確定。報告書: neo_shogi/reports/cmd_137_hasktorch_feasibility.md"
+    purpose: "hasktorchがneo_shogiの既存環境（Stack + WSL2）で動作するか検証し、Haskell一本でAlphaZero方式AI学習基盤を構築できるか判断材料を揃える"
+    acceptance_criteria:
+      - "hasktorchがstack buildで依存解決・ビルドできるか確認済み（成否を報告）"
+      - "libtorchのバージョンとインストール手順が明記されている"
+      - "最小限のテンソル演算（行列積等）が動作確認されている"
+      - "GPU(CUDA)がWSL2で利用可能か調査済み（殿のPC GPU有無も確認）"
+      - "簡易CNN（数層）を定義して順伝播が動くかPoC実施"
+      - "hasktorchで自動微分（勾配計算）が動くか確認"
+      - "調査結果がreports/に保存され、Go/NoGoの判断と根拠が明記されている"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）でAlphaZero方式のAI学習を
+      Haskell一本で実現できるか、技術調査を行え。
+
+      【調査項目】
+      1. hasktorch導入可否
+         - stack.yaml / package.yaml に hasktorch を追加してビルドが通るか
+         - libtorch（C++バックエンド）のインストール手順
+         - 依存バージョンの衝突がないか
+         - 既存のneo_shogiのstack設定（GHC版等）との互換性
+
+      2. 基本動作PoC
+         - テンソル生成・行列演算が動くか
+         - 簡易CNNモデル（Conv2d数層+Linear）を定義して順伝播
+         - 自動微分（backward）で勾配が計算されるか
+         - 訓練ループ（forward → loss → backward → optimizer step）が回るか
+
+      3. GPU/CUDA調査
+         - 殿のPCにNVIDIA GPUがあるか確認（lspci or nvidia-smi）
+         - WSL2でCUDAパススルーが可能か
+         - hasktorchでGPUテンソルが使えるか
+         - GPUがない場合、CPU-onlyでの学習速度の見積もり
+
+      4. AlphaZero適用の実現性評価
+         - 9x9盤面をテンソル入力に変換する設計案
+         - 方策ヘッド（81x81の指し手確率）+ 価値ヘッド（勝率）のネットワーク構成案
+         - MCTSとの統合方式（同一プロセスで評価関数として呼べるか）
+         - 既存のGameState/合法手生成との連携方式
+
+      5. Go/NoGo判断
+         - 上記を総合し、hasktorch路線で行けるか、Python別リポに切り替えるべきか
+         - Go: hasktorchで基本PoC全通過、GPU or CPU-onlyでも現実的な学習速度
+         - NoGo: ビルド不可、重大な制限あり、GPU必須だが利用不可 等
+         - NoGoの場合: Python(PyTorch)別リポの代替設計案も添えること
+
+      【注意】
+      - 調査タスクであり、本実装は行わない
+      - neo_shogiの既存コードは変更しない（PoC用ファイルは別ディレクトリに隔離）
+      - PoC用コードはneo_shogi/poc/hasktorch/ に配置
+      - 調査報告はreports/に保存
+      - hasktorchの最新ドキュメント・GitHub issuesを確認し、既知の問題も報告すること
+
+  - id: cmd_136
+    timestamp: "2026-02-12T22:00:00"
+    command: "承認済みスキル9件を一括作成せよ"
+    project: multi-agent-shogun
+    priority: medium
+    status: done
+    assigned_to: [ashigaru2, ashigaru3, ashigaru4]
+    note: "全9件完了。Part A(d1a76ad/1557行): haskell-module-splitter+be-fe-adapter+spa-router. Part B(91969a4/1230行): learning-module+review-mode+kifu-parser. Part C(5524065/1842行): sfen-parser+tsume-generator+board-editor. 合計4629行."
+    purpose: "承認済みスキル化候補9件の設計書+SKILL.mdを作成し、skills/ディレクトリに格納する"
+    acceptance_criteria:
+      - "以下9件のスキルが skills/ に作成されている: haskell-module-splitter, be-fe-adapter-pattern, spa-to-react-router-migrator, learning-module-scaffold, review-mode-generator, kifu-parser, sfen-position-parser, tsume-auto-generator, board-position-editor"
+      - "各スキルにSKILL.md（目的・手順・Examples）が含まれる"
+      - "既存スキル(playwright-e2e-scaffold等)のフォーマットに準拠"
+    details: |
+      殿が9件のスキル化候補を全承認した。
+      multi-agent-shogun（パス: /mnt/c/tools/multi-agent-shogun）の skills/ ディレクトリに
+      各スキルの設計書+SKILL.mdを作成せよ。
+
+      【対象9件】
+      1. haskell-module-splitter (cmd_106C) — 肥大化Haskellモジュールの機能単位分割
+      2. be-fe-adapter-pattern (cmd_109) — BE/FEインターフェース不整合の修正パターン
+      3. spa-to-react-router-migrator (cmd_115) — SPA→React Router移行自動化
+      4. learning-module-scaffold (cmd_111) — TVar+forkIO非同期学習モジュール雛形
+      5. review-mode-generator (cmd_110) — 感想戦モード実装パターン
+      6. kifu-parser (cmd_123) — KIF/CSA棋譜パーサーパターン
+      7. sfen-position-parser (cmd_126) — SFEN局面パーサー+バリデーター
+      8. tsume-auto-generator (cmd_127) — 自己対戦棋譜からの詰将棋自動生成
+      9. board-position-editor (cmd_126) — 局面エディタUI雛形
+
+      既存スキル（skills/playwright-e2e-scaffold/等）を参考にフォーマットを統一すること。
+      足軽3名程度で分担し、各3件ずつ担当。
+
+  - id: cmd_135
+    timestamp: "2026-02-12T22:00:00"
+    command: "全機能統合テスト+ビルド検証+バグ修正"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: ashigaru6
+    note: "完了。stack build warning0/error0, stack test 456全合格, npm build TSエラー0. バグ3件修正(PageLayout欠落3ルート). commit dac780f. 全API/全ルート/全カード確認OK."
+    purpose: "cmd_118〜130で追加された13機能の統合ビルドが通り、全テスト合格、FE側にも型エラー・ランタイムエラーがないことを確認する"
+    acceptance_criteria:
+      - "stack build でwarningゼロ・エラーゼロ"
+      - "stack test で全テスト合格（テスト数の減少なし）"
+      - "npm run build でエラーゼロ"
+      - "新規追加したAPI全エンドポイントがRoutes.hsに正しく登録されている"
+      - "App.tsxの全ルートが正しく定義されている"
+      - "WelcomeScreenから全機能への導線が存在する"
+      - "発見したバグは修正してコミット"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）で
+      cmd_118〜130の13cmd分の成果を統合検証せよ。
+
+      【検証手順】
+      1. stack build 2>&1 — warning/error確認、あれば修正
+      2. stack test — 全テスト実行、失敗あれば修正
+      3. npm run build — FEビルド確認、型エラーあれば修正
+      4. Routes.hs — 全新規APIエンドポイントが登録されているか確認
+         (heatmap, rating, kifu, timer, position, archetype, tournament, daily, tsume/generate)
+      5. App.tsx — 全ルートが定義されているか確認
+         (/editor, /tournament, /daily, /kifu, /rating 等)
+      6. WelcomeScreen.tsx — 全機能への導線カード確認
+
+      【注意】
+      - 13cmdが短時間に並列実装されたため、統合時の競合・不整合が起きやすい
+      - 特にRoutes.hs、App.tsx、WelcomeScreen.tsxは複数cmdが触っている
+      - 発見した問題は全て修正してコミットすること
+      - 機能追加は行わず、統合品質の確保のみ
+
+  - id: cmd_134
+    timestamp: "2026-02-12T22:00:00"
+    command: "サウンドエフェクト（駒打ち音・王手音・対局開始終了音）を実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    assigned_to: ashigaru5
+    note: "完了。SoundManager.ts(7種Web Audio合成)+useSound.tsリファクタ+GameView.tsx統合(ミュート+指し手検出) (commit: 58a55fb). npm run build成功."
+    purpose: "対局中の駒操作や重要イベントにサウンドフィードバックを追加し、体験を向上させる"
+    acceptance_criteria:
+      - "駒を動かす/打つときに「パチッ」という音が鳴る"
+      - "王手時に警告音が鳴る"
+      - "対局開始・終了時にサウンドが鳴る"
+      - "駒を取る時は通常と異なる音が鳴る"
+      - "成り選択時にサウンドが鳴る"
+      - "サウンドON/OFF設定がある（デフォルトON）"
+      - "設定はlocalStorageに保存される"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）にサウンドエフェクトを実装。
+
+      【フロントエンド】
+      1. frontend/src/audio/SoundManager.ts 新設
+         - Web Audio APIで効果音を生成（外部ファイル不要）
+         - サウンド種別:
+           * move: 駒移動（短い「カチッ」）
+           * capture: 駒取り（やや重い「パチッ」）
+           * drop: 駒打ち（「トン」）
+           * check: 王手（高い警告音）
+           * promote: 成り（上昇音）
+           * gameStart: 対局開始（和風の一音）
+           * gameEnd: 対局終了（低い一音）
+         - 音量調整(0〜100)
+         - ミュート切替
+      2. useSound.ts カスタムフック
+         - SoundManagerのシングルトン管理
+         - playSound(type) で再生
+         - settings(enabled, volume)のlocalStorage永続化
+      3. GameView.tsxに統合
+         - 指し手確定時にmove/capture/drop音を再生
+         - 王手検出時にcheck音
+         - 成り選択時にpromote音
+         - 対局開始/終了時にgameStart/gameEnd音
+      4. 設定パネルにサウンド設定を追加
+         - ON/OFFトグル
+         - 音量スライダー
+
+      【注意】
+      - 外部音声ファイルは使わない。Web Audio APIのOscillatorNodeで合成
+      - モバイルではユーザー操作後に初回AudioContext unlockが必要
+      - 過度に大きな音や不快な音は避ける。控えめで心地よい音に
+
+  - id: cmd_133
+    timestamp: "2026-02-12T22:00:00"
+    command: "定跡エクスプローラー（定跡ツリー可視化）を実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    assigned_to: ashigaru7
+    note: "完了。BE: Joseki.hs trieツリーAPI+カテゴリフィルタ. FE: JosekiExplorer.tsx+CSS+josekiApi.ts+JosekiLibrary.tsxボタン追加. 両ビルド成功. commit b0337a6."
+    purpose: "定跡DBの分岐構造をツリー形式で可視化し、定跡の全体像を俯瞰できるようにする"
+    acceptance_criteria:
+      - "定跡の手順がツリー図として表示される"
+      - "分岐点（複数の応手がある局面）が明示される"
+      - "ツリーのノードをクリックするとその局面が盤面に表示される"
+      - "ツリーからそのまま定跡トレーナーに遷移できる"
+      - "カテゴリ別フィルタ（居飛車/振り飛車等）"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に定跡エクスプローラーを実装。
+
+      【バックエンド】
+      1. GET /api/joseki/tree — 定跡DB全体のツリー構造をJSON返却
+         - ルートノード（初期局面）から各定跡の分岐をネスト構造で表現
+         - 各ノード: 手（move）、局面、子ノード（分岐）、該当定跡名
+      2. GET /api/joseki/tree?category=居飛車 — カテゴリフィルタ
+
+      【フロントエンド】
+      3. JosekiExplorer.tsx 新設
+         - 左側: ツリー図（SVGまたはCSSで描画）
+           * 縦型ツリー表示（上が初手、下に分岐）
+           * 分岐点は強調表示（太いノード）
+           * 定跡名のラベル付き
+         - 右側: 選択したノードの盤面表示（Boardコンポーネント）
+         - カテゴリ別フィルタバー
+         - 「この定跡を練習」→ JosekiTrainerへ遷移
+         - 「この局面から対局」→ GameViewへ遷移
+      4. App.tsx にルーティング追加（/joseki/explorer）
+      5. JosekiLibrary画面に「ツリーで見る」ボタン追加
+
+  - id: cmd_132
+    timestamp: "2026-02-12T22:00:00"
+    command: "対局リプレイ共有（URLシェア）機能を実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    assigned_to: ashigaru8
+    note: "完了。kifuEncoder.ts(133行)+ShareButton.tsx(54行)+ReplayPage.tsx(68行)+App.tsx /replayルート追加 (commit: c10efdb). スキル候補: url-state-encoder."
+    purpose: "対局の棋譜をURLとしてエンコードし、リンクを共有するだけで他者が棋譜を再生できるようにする"
+    acceptance_criteria:
+      - "対局終了後に『共有リンクを生成』ボタンが表示される"
+      - "棋譜データがURLパラメータにエンコードされる"
+      - "共有URLを開くと棋譜再生画面が表示される"
+      - "URLは短縮される（Base64等で圧縮）"
+      - "クリップボードコピー機能"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に対局リプレイ共有を実装。
+
+      【設計方針】
+      サーバーに棋譜を保存せず、URLパラメータに棋譜を埋め込む方式。
+      （サーバーレス、データベース不要）
+
+      【実装】
+      1. frontend/src/utils/kifuEncoder.ts 新設
+         - encodeKifu(moves, settings) → Base64圧縮文字列
+         - decodeKifu(encoded) → moves + settings
+         - 手順は座標+駒種で最小限にエンコード（例: "7776FU" → 数バイト）
+         - バリアント情報（standard/mini/chu）も含める
+
+      2. ShareButton.tsx 新設
+         - 対局終了画面に配置
+         - クリックでURLを生成 → クリップボードにコピー
+         - コピー完了のトースト通知
+         - SNS共有ボタン（Twitter/Line等のintent URL）
+
+      3. App.tsx にルーティング追加
+         - /replay?k=<encoded> — 共有URLルート
+         - URLパラメータをデコード → KifuPlayer.tsx（cmd_123のFE）で再生
+
+      【注意】
+      - 棋譜が長い場合URL長制限に注意（4000文字程度が安全）
+      - 長すぎる場合は「棋譜が長すぎます」エラーではなく、手順を省略せず対応
+      - KifuPlayer.tsx（cmd_123 FE）を再利用して再生
+
+  - id: cmd_131
+    timestamp: "2026-02-12T22:00:00"
+    command: "git整理（不要ファイル除去+コミット整理+push準備）"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: ashigaru1
+    note: "完了。.gitignore完璧（変更不要）、ビルド成果物混入なし、stack build+npm run build成功。コミット不要。main: origin/main+32-34 commits ahead. push準備完了（殿許可待ち）。"
+    purpose: "cmd_106〜130の大量コミットを整理し、リモートにpushできる状態にする"
+    acceptance_criteria:
+      - "git statusがクリーン（未追跡・未コミットファイルなし）"
+      - ".gitignoreに必要な除外パターンが追加されている"
+      - "不要な生成ファイル・一時ファイルが除去されている"
+      - "stack build + stack test + npm run build が全て成功"
+      - "git log が整理されている（明らかなゴミコミットがない）"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）のgitリポジトリを整理。
+
+      【作業】
+      1. git status で未追跡・未コミットファイルを確認
+      2. .gitignore に不足があれば追加（data/selfplay/*, .stack-work/, node_modules/, dist/ 等）
+      3. 不要ファイルがコミットされていないか確認
+      4. stack build + stack test 全合格確認
+      5. npm run build 成功確認
+      6. git add + git commit で最終整理コミット
+
+      【注意】
+      - git push は行わない（殿の許可待ち）
+      - git rebase / squash は行わない（履歴改変禁止）
+      - 機能変更は行わず、リポジトリ整理のみ
+
+  - id: cmd_130
+    timestamp: "2026-02-12T09:50:00"
+    command: "AIアーキタイプ（4種の個性）システムを実装せよ"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: ashigaru1
+    note: "全完了。Phase1 BE: Archetype.hs+ArchetypeHandlers.hs (af4df48). Phase2 BE: Search/SelfPlay/Tournament統合 (f0c7ecf). Phase2 FE: SelfPlayPanel.tsx Archetype選択UI (ea82328). 456テスト全合格, warning 0, build成功."
+    purpose: "AIに4種の個性（標準/守り重視/攻め重視/ランダム多め）を持たせ、トーナメント等の特定場面で選択可能にする"
+    acceptance_criteria:
+      - "4種のアーキタイプが定義されている: Standard, Defensive, Aggressive, RandomPlus"
+      - "Defensive: 玉の安全度・守り駒の価値を評価関数で高く重み付け、攻撃的な手を抑制"
+      - "Aggressive: 攻め駒の前進・相手陣への侵入・駒取りを評価関数で高く重み付け"
+      - "RandomPlus: 標準のε値に+10%加算（標準5%なら15%）"
+      - "Standard: 現行の評価関数そのまま（デフォルト）"
+      - "通常対局（人間vsAI）では常にStandardが使用される（他アーキタイプは選択不可）"
+      - "トーナメントモード（cmd_128）でアーキタイプを選択できる"
+      - "自己対戦モードでもアーキタイプを指定できる"
+      - "各アーキタイプに名前・アイコン・説明文がある"
+      - "既存テスト全合格・stack build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）にAIアーキタイプシステムを実装。
+
+      【バックエンド】
+      1. src/Shogi/Engine/Archetype.hs 新設
+         - data Archetype = Standard | Defensive | Aggressive | RandomPlus
+         - archetypeWeights :: Archetype -> EvalWeights -> EvalWeights
+           * Standard: 既存のEvalWeightsをそのまま返す
+           * Defensive: 玉安全度の重みを1.5倍、駒の守り位置（自陣3段）ボーナス追加、
+             攻撃系重みを0.7倍に抑制
+           * Aggressive: 駒の前進ボーナス追加、相手陣侵入ボーナス、駒取り評価を1.3倍、
+             玉安全度の重みを0.8倍に抑制
+           * RandomPlus: EvalWeightsは変更なし（ε値で制御）
+         - archetypeEpsilon :: Archetype -> Double -> Double
+           * Standard/Defensive/Aggressive: 渡されたε値をそのまま返す
+           * RandomPlus: ε値に0.10を加算して返す
+         - archetypeName/archetypeDescription :: Archetype -> Text
+           * Standard: "標準" / "バランスの取れた指し回し"
+           * Defensive: "守り重視" / "堅い囲いと手厚い受けを好む"
+           * Aggressive: "攻め重視" / "積極的な駒の前進と仕掛けを好む"
+           * RandomPlus: "奔放" / "意外な手を多く指す自由な棋風"
+
+      2. 既存モジュールとの統合
+         - Search.hs / Evaluation.hs: アーキタイプに応じたEvalWeightsを適用
+         - SelfPlay.hs: SelfPlayConfigにarchetype1, archetype2フィールド追加
+           （先手・後手それぞれにアーキタイプを設定可能）
+         - Tournament.hs（cmd_128）: 参加者設定にarchetypeフィールド追加
+         - Game.hs: 通常対局ではStandard固定（アーキタイプパラメータを受け付けない）
+
+      3. API
+         - GET /api/archetypes — アーキタイプ一覧（名前・説明・アイコン）
+         - 既存の POST /api/selfplay/start に archetype1, archetype2 パラメータ追加
+         - POST /api/tournament/create の参加者設定にarchetype追加
+
+      【注意】
+      - 通常対局APIにはアーキタイプ選択を追加しないこと（常にStandard）
+      - Defensive/Aggressiveの重み調整は控えめに（極端すぎると弱くなる）
+      - cmd_128（トーナメント）のFEでアーキタイプ選択UIは別途Phase 2で対応
+
+  - id: cmd_129
+    timestamp: "2026-02-12T09:30:00"
+    command: "デイリーチャレンジ機能を実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    assigned_to: ashigaru7
+    note: "全完了。BE: DailyChallenge.hs+DailyChallengeHandlers.hs (stack build成功). FE: DailyChallenge.tsx+dailyChallengeApi.ts+App.tsx/WelcomeScreen統合 (d2191db). npm run build成功."
+    purpose: "日替わりの問題（詰将棋/次の一手/定跡クイズ）を自動出題し、毎日の学習習慣を促す"
+    acceptance_criteria:
+      - "日付ベースのシード値で毎日異なる問題が出題される"
+      - "問題種別が3種ある: 詰将棋、次の一手（最善手当て）、定跡クイズ"
+      - "正解/不正解のフィードバックと解説が表示される"
+      - "連続正解日数（ストリーク）が記録・表示される"
+      - "過去のチャレンジ履歴が閲覧できる"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）にデイリーチャレンジ機能を実装。
+
+      【バックエンド】
+      1. src/Shogi/Engine/DailyChallenge.hs 新設
+         - 日付からシード値を生成し、問題を決定論的に選出
+         - 問題プール: 既存の詰将棋DB + 定跡DB + 自己対戦棋譜から「次の一手」抽出
+         - 問題種別ローテーション（日替わりで種別を変える等）
+      2. API
+         - GET /api/daily — 今日のチャレンジ問題を返す
+         - POST /api/daily/answer — 回答を受け取り正誤判定
+         - GET /api/daily/history — 過去のチャレンジ履歴
+
+      【フロントエンド】
+      3. DailyChallenge.tsx 新設
+         - 今日の問題表示（Board + 問題文）
+         - 回答入力（盤面操作 or 選択肢）
+         - 正解/不正解表示 + 解説
+         - ストリーク表示（🔥 N日連続）
+         - 過去履歴カレンダービュー
+      4. WelcomeScreenに「今日のチャレンジ」ボタン（目立つ位置に）
+      5. App.tsx にルーティング追加（/daily）
+
+  - id: cmd_128
+    timestamp: "2026-02-12T09:30:00"
+    command: "トーナメントモード（AI総当たり戦）を実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    assigned_to: ashigaru1
+    note: "全完了。BE: Tournament.hs+TournamentHandlers.hs (6a7f344, 592225f, 6817a4d). FE: TournamentPanel.tsx (3d7f9a9)+route統合(9d21def). npm run build+stack build成功."
+    purpose: "AI同士の総当たり戦を実行し、世代間・設定間の強さを定量比較できるようにする"
+    acceptance_criteria:
+      - "2〜8体のAI設定（世代/難易度/ε値の組合せ）でトーナメントを作成できる"
+      - "総当たり（ラウンドロビン）で全組合せの対局が自動実行される"
+      - "対局結果がリアルタイムで勝敗表に反映される"
+      - "最終結果に順位・勝率・Eloレーティング推定が表示される"
+      - "トーナメント中の個別対局を盤面プレビューで観戦できる"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）にAIトーナメント機能を実装。
+
+      【バックエンド】
+      1. src/Shogi/Engine/Tournament.hs 新設
+         - TournamentConfig: 参加者リスト（各AIの設定）、1組あたり対局数
+         - ラウンドロビン対戦スケジュール生成
+         - 対局実行（SelfPlay.hsの既存ロジックを活用）
+         - 結果集計: 勝/敗/引分、勝率、Elo推定
+      2. API
+         - POST /api/tournament/create — トーナメント作成+開始
+         - GET /api/tournament/status — 進捗+リアルタイム結果
+         - GET /api/tournament/results — 最終結果
+
+      【フロントエンド】
+      3. TournamentPanel.tsx 新設
+         - 参加者設定UI（世代選択/難易度/ε値）
+         - 対戦表（勝敗マトリクス）リアルタイム更新
+         - 順位表（勝率ソート+Elo推定）
+         - 進行中対局の盤面プレビュー（SelfPlayPanel再利用）
+
+      【注意】
+      - SelfPlay.hsのgameLoopを再利用し、対戦ペアごとに実行
+      - forkIOで並列実行（同時2〜4局程度）
+      - トーナメント結果はメモリ内保持（永続化不要）
+
+  - id: cmd_127
+    timestamp: "2026-02-12T09:30:00"
+    command: "自動詰将棋生成機能を実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    assigned_to: ashigaru8
+    note: "全完了。BE: TsumeGenerator.hs+TsumeGenHandlers.hs (68e2bfe). FE: TsumeShogi.tsxタブ追加+tsumeGenApi.ts (3b48e0c). npm run build成功."
+    purpose: "自己対戦の終盤局面から詰将棋問題を自動抽出し、詰将棋DBを自動拡充する"
+    acceptance_criteria:
+      - "自己対戦の棋譜から詰み直前の局面を自動検出できる"
+      - "検出した局面が実際に詰みであることを詰み探索で検証する"
+      - "手数（1手詰〜N手詰）を正確に判定する"
+      - "生成した問題が既存の詰将棋DBに追加される"
+      - "生成問題の重複チェック（同一局面の排除）が行われる"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に自動詰将棋生成機能を実装。
+
+      【バックエンド】
+      1. src/Shogi/Engine/TsumeGenerator.hs 新設
+         - 自己対戦棋譜（data/selfplay/）から終局N手前の局面を抽出
+         - 各局面に対して詰み探索（TsumeShogi.hsの既存ロジック活用）
+         - 詰みが確認された局面を詰将棋問題として整形
+         - 手数判定（1手詰、3手詰、5手詰等）
+         - 局面ハッシュによる重複排除
+         - 難易度推定（手数+合駒の有無+変化の数）
+      2. API
+         - POST /api/tsume/generate — 棋譜N局分から詰将棋を自動生成
+         - GET /api/tsume/generated — 生成済み問題一覧
+
+      【フロントエンド】
+      3. 既存TsumeShogi.tsxに「自動生成問題」タブを追加
+         - 生成ボタン（棋譜数・最大手数を指定）
+         - 生成された問題リスト表示
+         - 通常の詰将棋UIで解く
+
+  - id: cmd_126
+    timestamp: "2026-02-12T09:30:00"
+    command: "局面エディタ（自由配置モード）を実装せよ"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: ashigaru2
+    note: "全完了。BE: PositionSetup.hs+PositionHandlers.hs. FE: PositionEditor.tsx (592225f)+positionApi.ts+route統合(9d21def). npm run build成功."
+    purpose: "盤面上に駒を自由に配置して任意の局面を作成し、そこから対局・分析・感想戦を開始できるようにする"
+    acceptance_criteria:
+      - "空の盤面に駒を自由にドラッグ&ドロップで配置できる"
+      - "駒台から盤面への配置、盤面上の駒の移動・削除ができる"
+      - "成駒/非成駒の切り替えができる"
+      - "先手/後手の駒を区別して配置できる"
+      - "配置完了後『この局面で対局開始』『この局面を分析』が選べる"
+      - "SFEN形式での局面インポート/エクスポートができる"
+      - "不正な局面（玉なし等）に警告が出る"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に局面エディタを実装。
+
+      【バックエンド】
+      1. POST /api/game/from-position — SFEN文字列から対局を開始するAPI
+         - SFEN局面のバリデーション（駒数制約、玉の有無等）
+         - GameState初期化をSFENから行う
+      2. GET /api/position/validate — 局面の合法性チェック
+
+      【フロントエンド】
+      3. PositionEditor.tsx 新設
+         - 空盤面 + 駒パレット（全駒種を先手/後手で表示）
+         - ドラッグ&ドロップで盤面に配置
+         - 右クリック or ボタンで成/不成切替
+         - 先手/後手切替ボタン（配置する駒の所属変更）
+         - 駒削除（盤面外にドラッグ or deleteキー）
+         - 持ち駒エリアへの配置
+         - SFEN入出力テキストフィールド
+         - 「初期局面に戻す」「全消去」ボタン
+         - 「この局面で対局」→ GameViewへ遷移
+         - 「この局面を分析」→ ReviewModeへ遷移
+      4. Boardコンポーネントをエディタモードで再利用
+         - editable=true でドロップ先制限を解除（通常は合法手のみだが、エディタでは自由配置）
+      5. App.tsx にルーティング追加（/editor）
+      6. WelcomeScreenに「局面エディタ」ボタン追加
+
+  - id: cmd_125
+    timestamp: "2026-02-12T09:30:00"
+    command: "盤面ヒートマップ（焦点マス可視化）レイヤーを実装せよ"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: ashigaru7
+    note: "Phase 1 BE完了. HeatMap.hs(4要素スコア合成+正規化) + HeatMapHandlers.hs(GET /api/game/{id}/heatmap?moveNumber=N). 自モジュールコンパイル成功."
+    purpose: "評価値・利き数・玉との距離から各マスの重要度を算出し、気圧図のような青→赤グラデーションで盤面上に半透明表示する"
+    acceptance_criteria:
+      - "各マス(9x9=81マス)の重要度スコアが算出される"
+      - "スコアは利き数（攻撃/防御）、駒価値、玉との距離、競合度を考慮"
+      - "盤面上に半透明オーバーレイで色表示（青=低重要度、黄=中、赤=高重要度）"
+      - "ヒートマップの表示ON/OFFトグルがある"
+      - "手が進むたびにヒートマップがリアルタイム更新される"
+      - "感想戦モード（ReviewMode）でも使用可能"
+      - "パフォーマンスに問題がない（1手あたり100ms以内で計算）"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に盤面ヒートマップ機能を実装。
+
+      【バックエンド】
+      1. src/Shogi/Engine/HeatMap.hs 新設
+         - computeHeatMap :: GameState -> HeatMapData
+         - 各マス(row,col)の重要度スコア算出:
+           * 利き数スコア: そのマスに利いている駒の数（先手+後手）。競合マス（双方が利いている）はボーナス
+           * 駒価値スコア: そのマスに駒がある場合、その駒の価値。高価値駒ほどスコア高
+           * 玉距離スコア: 相手玉からのマンハッタン距離が近いほどスコア高（攻撃的重要度）
+           * 直前の指し手周辺: 最後に動いた駒の周辺マスにボーナス（注目エリア）
+         - 全スコアを0.0〜1.0に正規化
+         - HeatMapData = Map (Int,Int) Double（81マス分）
+      2. API
+         - GET /api/game/{id}/heatmap — 現局面のヒートマップデータ返却
+         - GET /api/game/{id}/heatmap?moveNumber=N — 指定手数の局面のヒートマップ
+
+      【フロントエンド】
+      3. HeatMapOverlay.tsx 新設
+         - Boardコンポーネント上に重ねるSVG/CSS半透明レイヤー
+         - 各マスに背景色を設定: スコア0.0→青(rgb(0,100,255)), 0.5→黄(rgb(255,255,0)), 1.0→赤(rgb(255,50,0))
+         - opacity: 0.3程度で駒が見えるように
+         - 表示ON/OFFトグルボタン（目のアイコン等）
+      4. GameView.tsx + ReviewMode.tsx に統合
+         - 設定パネルまたは盤面横にトグルボタン配置
+         - 手が進むたびにAPIを叩いてヒートマップ更新
+      5. heatmapApi.ts 新設 — API呼び出し関数
+
+      【注意】
+      - 計算はサーバーサイド（Haskell）で行う。合法手生成ロジックを活用して利き数を効率的に算出
+      - 大局将棋(36x36)には非対応で可（本将棋9x9のみ）
+      - パフォーマンス重視: キャッシュ活用、不要な再計算を避ける
+
+  - id: cmd_124
+    timestamp: "2026-02-11T22:10:00"
+    command: "棋力レーティング（Elo）システムを実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    assigned_to: ashigaru1
+    note: "Phase 1 BE完了 (commit: 3fd276e). Phase 2 FE dispatched to ashigaru4 (subtask_124b: RatingDisplay.tsx+WelcomeScreen統合+App.tsxルート追加)."
+    purpose: "AI対戦・自己対戦の結果からプレイヤーの棋力をEloレーティングで算出・表示し、成長を可視化する"
+    acceptance_criteria:
+      - "対局終了時にEloレーティングが自動更新される"
+      - "プレイヤーのレーティング履歴が保存される（localStorage）"
+      - "レーティング推移グラフが表示される（Recharts）"
+      - "AI各難易度に仮レーティングが設定されている（例: Easy=800, Normal=1200, Hard=1600）"
+      - "対戦相手との期待勝率に基づくK値計算が正しい"
+      - "レーティング表示がヘッダーまたはプロフィール画面に常時見える"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に棋力レーティングシステムを実装。
+
+      【バックエンド】
+      1. src/Shogi/Engine/Rating.hs 新設
+         - Eloレーティング計算（K=32標準、初期レート1200）
+         - 期待勝率計算: E = 1 / (1 + 10^((Rb-Ra)/400))
+         - レーティング更新: Ra' = Ra + K * (S - E)  (S=1勝/0敗/0.5引分)
+         - AI難易度別の仮レーティング設定
+      2. API
+         - GET /api/rating — 現在のレーティングと履歴
+         - POST /api/rating/update — 対局結果からレーティング更新（対局終了時に自動呼出）
+
+      【フロントエンド】
+      3. RatingDisplay.tsx 新設
+         - 現在のレーティング数値表示
+         - レーティング推移グラフ（Recharts LineChart）
+         - 段級位の目安表示（例: 1200=初段相当、1400=二段相当）
+      4. 対局終了画面にレーティング変動表示（+15, -10 等）
+      5. WelcomeScreenまたはヘッダーに現在レーティング表示
+
+      【注意】
+      - レーティングデータはlocalStorageで永続化（サーバー側は非永続で可）
+      - 自己対戦(SelfPlay)の結果はレーティングに反映しない（AI vs AI のため）
+      - 既存のgameHistory（cmd_069）と連携し、対局記録からレーティングを再計算可能に
+
+  - id: cmd_123
+    timestamp: "2026-02-11T22:10:00"
+    command: "棋譜インポート機能（KIF/CSA形式）を実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    assigned_to: ashigaru8
+    note: "全完了。BE: KifParser+CsaParser+KifuImport+KifuHandlers (6dadeeb). FE: KifuImport.tsx+KifuPlayer.tsx+kifuApi.ts (117d7d3). npm run build成功."
+    purpose: "KIF形式・CSA形式の棋譜ファイルを読み込み、盤面再生・感想戦分析ができるようにする"
+    acceptance_criteria:
+      - "KIF形式の棋譜ファイルを正しくパースできる"
+      - "CSA形式の棋譜ファイルを正しくパースできる"
+      - "インポートした棋譜を手順再生できる（1手ずつ進む/戻る）"
+      - "インポートした棋譜から感想戦モード（cmd_110）に遷移できる"
+      - "パース失敗時に適切なエラーメッセージが表示される"
+      - "ドラッグ&ドロップまたはファイル選択でインポートできる"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に棋譜インポート機能を実装。
+
+      【バックエンド】
+      1. src/Shogi/Notation/KifParser.hs 新設
+         - KIF形式パーサー（手数、指し手、消費時間、コメント）
+         - 駒名の日本語→内部表現変換（「７六歩」→ Move型）
+         - 座標変換（全角数字+漢数字 → (Int,Int)）
+      2. src/Shogi/Notation/CsaParser.hs 新設
+         - CSA形式パーサー（+7776FU等の形式）
+         - ヘッダー情報（対局者名、日時、手合割）
+      3. API
+         - POST /api/kifu/import — 棋譜テキストを受け取り、手順リスト+メタ情報を返す
+         - 形式の自動判別（KIF/CSA）
+
+      【フロントエンド】
+      4. KifuImport.tsx 新設
+         - ファイル選択ボタン + ドラッグ&ドロップエリア
+         - テキスト直接貼り付けエリア
+         - パース結果プレビュー（対局者名、手数等）
+         - 「再生」ボタン → 棋譜再生画面へ
+         - 「感想戦で分析」ボタン → ReviewModeへ
+      5. KifuPlayer.tsx 新設
+         - Board表示 + 手数スライダー
+         - 再生/一時停止/1手進む/1手戻る/先頭/末尾
+         - 棋譜テキスト表示（現在の手をハイライト）
+      6. App.tsx にルーティング追加（/kifu）
+      7. WelcomeScreenに「棋譜インポート」ボタン追加
+
+  - id: cmd_122
+    timestamp: "2026-02-11T22:10:00"
+    command: "対局時計プリセットシステムを実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: done
+    assigned_to: ashigaru7
+    note: "全完了。BE: GameTimer.hs+TimerHandlers.hs. FE: TimerDisplay.tsx+timerApi.ts+GameView統合 (d9e1492). npm run build成功."
+    purpose: "対局時に持ち時間・秒読み・フィッシャー加算の時計設定を選べるようにし、時間切れ判定を行う"
+    acceptance_criteria:
+      - "対局開始時にプリセット選択ができる（NHK杯式/フィッシャー式/切れ負け/持ち時間なし）"
+      - "対局中に残り時間がリアルタイム表示される"
+      - "秒読みモード: 持ち時間消費後、1手N秒以内に指す"
+      - "フィッシャー式: 1手ごとにN秒加算"
+      - "切れ負け: 持ち時間がゼロで負け"
+      - "時間切れ判定が正しく動作する"
+      - "カスタム設定（任意の持ち時間・秒読み・加算値）も可能"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に対局時計システムを実装。
+
+      【バックエンド】
+      1. src/Shogi/Engine/GameTimer.hs 新設
+         - TimerConfig型: プリセット名、持ち時間、秒読み、フィッシャー加算値
+         - TimerState型: 先手残り時間、後手残り時間、秒読み残り
+         - プリセット定義:
+           * NHK杯式: 持ち時間10分 + 秒読み30秒
+           * フィッシャー式: 持ち時間5分 + 1手10秒加算
+           * 切れ負け15分: 持ち時間15分、加算なし
+           * 早指し: 持ち時間3分 + 秒読み10秒
+           * 持ち時間なし（制限なし）
+         - 手番切替時の時間更新ロジック
+         - 時間切れ判定
+      2. Game.hsとの統合
+         - 対局作成時にTimerConfigを受け取る
+         - 指し手確定時にタイマー更新
+         - 時間切れ → GameResult反映
+      3. API
+         - GET /api/timer/presets — プリセット一覧
+         - 既存のPOST /api/game に timerConfig パラメータ追加
+
+      【フロントエンド】
+      4. TimerDisplay.tsx 新設
+         - 先手・後手の残り時間表示（MM:SS形式）
+         - 秒読み中は赤色表示+カウントダウン
+         - アクティブ側のタイマーが動くアニメーション
+      5. GameSettings画面にプリセット選択UI追加
+         - プリセットボタン群 + カスタム設定フォーム
+      6. GameView.tsxにTimerDisplay統合
+         - 盤面の上下（または左右）に時計を配置
+
+      【注意】
+      - タイマーはフロントエンド側でsetIntervalで1秒更新（サーバー側は指し手時点の検証のみ）
+      - AI対戦時もAIの思考時間を計測する
+      - 持ち時間なし選択時はタイマー非表示
+
+  - id: cmd_121
+    timestamp: "2026-02-11T18:05:00"
+    command: "WelcomeScreen（ホーム画面）のUIレイアウト整理"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: ashigaru4
+    note: "完了 (commit: 4aed395). カテゴリ別グリッドレイアウト(対局/学習/観戦・分析), CSS Grid auto-fit, カードスタイル統一, レスポンシブ対応, 定跡トレーナーリンク追加."
+    purpose: "ホーム画面『将棋を始めましょう』のレイアウトをUI観点から整理し、各機能への導線をわかりやすくする"
+    acceptance_criteria:
+      - "各機能ボタン/リンクが視覚的に整理されている（カテゴリ分けやグリッド配置等）"
+      - "主要機能（対局、詰将棋、定跡等）が一目でわかる"
+      - "レスポンシブ対応（モバイルでも崩れない）"
+      - "既存の全ルートへの導線が維持されている"
+      - "npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）のWelcomeScreen.tsxを
+      UI/レイアウト観点から整理せよ。
+
+      【現状】
+      cmd_110〜116で機能が大量に増え、ホーム画面のボタンが雑然としている可能性がある。
+      ユーザーが迷わず目的の機能にたどり着けるレイアウトに整理する。
+
+      【方針】
+      - 機能をカテゴリ別にグループ化（例：対局系/学習系/ツール系）
+      - 各ボタンにアイコンや簡単な説明があるとよい
+      - 主要機能（対局開始）は目立つ位置に
+      - 過度な装飾は不要。シンプルで見やすく
+      - 既存のテーマ（CSS変数）に従うこと
+      - 殿の感性を重視するため、まず現状を確認して改善案を実装せよ
+
+  - id: cmd_120
+    timestamp: "2026-02-11T17:59:00"
+    command: "全ページのナビゲーション整理 — 一方通行の解消と適切なリンク設置"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: ashigaru4
+    note: "完了 (commit: eab1578). PageLayoutタイトルクリックでホーム遷移、全ページ一方通行解消. npm run build成功."
+    purpose: "全ページから適切に他のページに遷移でき、どのページからもホームに戻れる一貫したナビゲーションを実現する"
+    acceptance_criteria:
+      - "全ページにホームへ戻る手段がある（ヘッダーロゴ、戻るボタン等）"
+      - "一方通行のページが存在しない（どのページからも最低限ホームに戻れる）"
+      - "各ページ間の遷移が論理的に整理されている（例：対局終了→感想戦、定跡辞典→定跡トレーナー等）"
+      - "ブラウザの戻るボタンが全ページで正しく機能する"
+      - "ナビゲーションの一貫性がある（同じパターンで戻れる）"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）のフロントエンドで
+      一方通行になっているページがある。全ページのナビゲーションを整理せよ。
+
+      【作業手順】
+      1. 全ページ（ルート）を洗い出し、各ページ間のあるべき遷移関係を整理
+      2. 現在のナビゲーション（リンク、戻るボタン等）を全ページで確認
+      3. 一方通行になっているページを特定
+      4. 適切なリンク・戻るボタンを追加
+
+      【URL一覧（cmd_115で導入済み）】
+      /                    → ホーム
+      /game                → 対局画面
+      /game/:id            → 特定対局
+      /game/:id/review     → 感想戦
+      /lobby               → ロビー
+      /lobby/:roomId       → 特定ルーム
+      /spectate/:id        → 観戦
+      /tsume               → 詰将棋
+      /joseki              → 定跡辞典
+      /joseki/trainer      → 定跡トレーナー
+      /selfplay            → AI自己対戦
+      /learning            → 評価関数学習
+
+      【注意】
+      - React Router（useNavigate, Link）を使用すること
+      - 既存のPageLayoutコンポーネント（共通ヘッダー）があれば活用
+      - 過剰なナビゲーション追加はせず、自然な遷移のみ
+
+  - id: cmd_119
+    timestamp: "2026-02-11T17:57:00"
+    command: "定跡トレーナーを盤面操作方式に改修せよ"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: ashigaru6
+    note: "完了 (commit: 9bc8923). JosekiTrainer.tsx全面改修1159行. Board/HandPanel/HintArrow統合. npm run build成功."
+    purpose: "定跡トレーナーで実際に盤面上で駒を動かして定跡を練習できるようにする（現在のテキスト入力方式を廃止）"
+    acceptance_criteria:
+      - "Boardコンポーネントを使い、盤面上で駒をクリック/ドラッグして指し手を入力できる"
+      - "正しい定跡の手を指すと次に進む"
+      - "間違った手を指すと不正解表示＋正解手を矢印（HintArrow）で盤面上に表示"
+      - "相手の手は自動で盤面に反映される"
+      - "進捗バー・正答率サマリ・復習機能は既存のものを維持"
+      - "既存テスト全合格・npm run build成功"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）の定跡トレーナー（JosekiTrainer.tsx）を改修。
+
+      【現状の問題】
+      cmd_112で実装された定跡トレーナーはテキスト入力による手順記法ドリル方式。
+      殿は盤面上で実際に駒を動かして定跡を練習したい。
+
+      【改修内容】
+      - JosekiTrainer.tsx でBoardコンポーネントを使用し、盤面を表示
+      - ユーザーが盤面上で駒を動かして指し手を入力
+      - 定跡の手順に沿って局面を進行（正解時は自動で相手の手も反映）
+      - 不正解時はHintArrowで正解手を盤面上に矢印表示
+      - 初期局面から定跡の手順を追って練習できること
+      - 4画面構成（選択/練習/サマリ/復習）の枠組みは維持
+
+  - id: cmd_118
+    timestamp: "2026-02-11T10:45:00"
+    command: "neo_shogiの現時点でのリファクタリング+unused warningクリーンアップ"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: [ashigaru7, ashigaru3]
+    note: "FE Phase完了(ashigaru3, 変更不要). BE Phase: ashigaru5が15h超停止→ashigaru7(subtask_118a2)に引き継ぎ. Tournament.hs/TournamentHandlers.hs除外(ashigaru1担当)."
+    purpose: "cmd_110〜116の大量機能追加後のコード品質を整え、stack buildのwarningをゼロにする"
+    acceptance_criteria:
+      - "stack build で unused import / unused variable 等のwarningがゼロ"
+      - "コード重複の整理（特にcmd_116で追加されたhashPosition等、TransTable.hsとの重複があれば共通化）"
+      - "モジュール間の依存関係が整理されている"
+      - "stack test 全テスト合格（テスト数の減少なし）"
+      - "npm run build 成功（FE側にもunused変数等あれば整理）"
+      - "機能的な変更は一切なし（リファクタリングのみ）"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に対し、
+      cmd_110（感想戦）〜cmd_116（千日手+ε-greedy）の大量機能追加後の
+      コード品質整理を行え。
+
+      【1. unused warningクリーンアップ（BE）】
+      - stack build 2>&1 の警告を全て確認
+      - unused import, unused variable, redundant constraint 等を全て除去
+      - 目標: stack build で warning ゼロ
+
+      【2. unused warningクリーンアップ（FE）】
+      - npm run build の警告を確認
+      - 未使用import・未使用変数があれば除去
+
+      【3. リファクタリング（BE）】
+      - cmd_116でGameState.hsに追加されたcomputePositionHashと
+        TransTable.hsの類似ロジックがあれば共通化を検討
+      - 肥大化したモジュールがあれば分割
+      - hlint の指摘があれば対応
+
+      【4. リファクタリング（FE）】
+      - 重複コード・不要なコードの整理
+      - 型安全性の確認（any型の排除）
+
+      【注意】
+      - 機能追加・変更は一切行わないこと。純粋なリファクタリングのみ。
+      - 全テスト合格を維持すること。
+
+  - id: cmd_117
+    timestamp: "2026-02-10T11:45:00"
+    command: "エージェント初回起動時のSession Start自動実行を復旧せよ"
+    project: multi-agent-shogun
+    priority: high
+    status: done
+    completed_by: karo
+    purpose: "全エージェントがClaude Code起動直後にSession Start手順を自律実行し、自分の役割を自覚した状態で稼働を開始する"
+    acceptance_criteria:
+      - "shutsujin_departure.shでClaude Code起動確認後、各エージェントに初期プロンプトがsend-keysで送信される"
+      - "初期プロンプトにより各エージェントがSession Start手順（自己識別→Memory読み込み→instructions読み込み→YAML確認）を実行する"
+      - "家老・足軽が起動後にアイドル状態で放置されない"
+      - "既存のinbox_watcher起動（STEP 6.6）と干渉しない"
+      - "将軍ペインには初期プロンプトを送らない（殿が直接操作するため）"
+    details: |
+      【問題】
+      shutsujin_departure.shのSTEP 6.7が廃止（2026-02-08）されて以降、
+      Claude Code起動後にエージェントへ初期プロンプトが送られていない。
+      CLAUDE.mdはシステムプロンプトとして自動ロードされるが、
+      ユーザー入力がないとClaude Codeは動作を開始しない。
+      結果、全エージェントが起動直後にアイドル状態で止まり、
+      自分の役割を自覚せず、Session Start手順も実行されない。
+
+      【修正箇所】
+      shutsujin_departure.sh — STEP 6.7のコメントアウト部分を復旧。
+      STEP 6.6（inbox_watcher起動）の後、STEP 6.8（ntfy）の前に配置。
+
+      【実装方針】
+      Claude Code起動確認後（bypass permissions表示確認後）、
+      各エージェントのペインに初期プロンプトをsend-keysで送信する。
+
+      送信内容例（短く、Session Startを発火させるだけ）:
+      ```
+      tmux send-keys -t <pane> "CLAUDE.mdのSession Start手順に従い起動せよ。" Enter
+      ```
+
+      対象ペイン:
+      - multiagent:0.0 (karo) — 起動確認後に送信
+      - multiagent:agents.0〜9 (ashigaru1〜10) — 起動確認後に送信
+      - shogun:main は除外（殿が直接操作）
+
+      【注意】
+      - Claude Codeの起動確認（bypass permissions表示）を待ってから送信すること
+      - 全ペインの起動確認を並列で待つと時間がかかるため、
+        karo→ashigaru順で、起動確認は省略してsleep数秒でも可
+        （Claude Code未起動状態でsend-keysしても入力バッファに溜まるだけで害はない）
+      - この修正は本システム（multi-agent-shogun）内のファイルのみ
+      - 家老自身がこの修正を直接実行してよい（足軽への委任不要）
+
+  - id: cmd_116
+    timestamp: "2026-02-10T11:30:00"
+    command: "AI自己対戦の千日手ルール確認+ε-greedy探索導入"
+    project: neo_shogi
+    priority: high
+    status: done
+    assigned_to: [ashigaru5, ashigaru3]
+    note: "2026-02-11完了。subtask_116a2(BE/ebd620d) + subtask_116b2(FE/dd11446)。456テスト全合格。"
+    purpose: "AI自己対戦で同一手順の消極的ループが多発する問題を解消し、学習データの多様性を確保する"
+    acceptance_criteria:
+      - "千日手（同一局面4回反復）の検出・引き分け判定が自己対戦エンジンに実装されている"
+      - "連続王手の千日手は王手側の反則負けとして処理される"
+      - "自己対戦モードで5%の確率で評価値を無視したランダム合法手を選択する（ε-greedy）"
+      - "ε値(探索率)はAPI/設定から変更可能"
+      - "通常対局(人間vsAI)にはランダム手は適用されない（自己対戦専用）"
+      - "既存テストが全て通る"
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）のAI自己対戦で
+      同じ手を繰り返す消極的ループが多発している。2点の対応を行え。
+
+      【1. 千日手ルール確認・実装】
+      - 現在のコードベースで千日手（同一局面が4回出現したら引き分け）が
+        正しく実装されているか調査せよ
+      - SelfPlay.hs の自己対戦ループで千日手判定が適用されているか確認
+      - 未実装であれば実装する：
+        - 局面ハッシュまたはSFEN文字列の出現回数を記録
+        - 4回目の同一局面出現で引き分け終了
+        - 連続王手による千日手は王手側の負け
+      - 通常対局(Game.hs)でも同様に千日手判定が効いているか確認
+
+      【2. ε-greedy探索の導入（自己対戦専用）】
+      - SelfPlay.hs（または関連モジュール）に探索率εを導入
+      - 自己対戦の各手で、確率ε（デフォルト5%=0.05）でランダムな合法手を選択
+      - 残り(1-ε)の確率で通常のAI評価による最善手を選択
+      - εは自己対戦開始APIのパラメータとして指定可能にする
+      - SelfPlayPanel.tsx にε設定スライダーを追加（0%〜30%程度）
+      - 通常対局のAI思考には一切影響を与えないこと
+
+  - id: cmd_110
+    timestamp: "2026-02-10T09:29:50"
+    command: "感想戦モードを実装せよ"
+    project: neo_shogi
+    priority: high
+    status: dispatched
+    assigned_to: ashigaru2
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に感想戦モードを実装せよ。
+
+      【機能】
+      対局終了後に、任意の局面に戻って「ここでこう指していたら？」と分岐を試せる。
+
+      【バックエンド】
+      1. POST /api/game/{id}/review/branch — 指定局面から分岐を作成
+         - moveNumber（何手目から分岐するか）を受け取る
+         - その局面のGameStateを復元し、新しい分岐用ゲームIDを返す
+      2. GET /api/game/{id}/review/best-move?moveNumber=N — その局面でのAI推奨手を返す
+         - 既存のSearch.hsを活用
+
+      【フロントエンド】
+      3. ReviewMode.tsx コンポーネント新設
+         - 対局終了後に「感想戦」ボタンで遷移
+         - 棋譜の任意の手をクリックしてその局面に移動
+         - 「ここから分岐」ボタンで分岐モードに入る
+         - 分岐内で自由に駒を動かせる
+         - AI推奨手の矢印表示（HintArrow再利用）
+         - 悪手マーカー付き形勢グラフ表示（cmd_104のAnalysis再利用）
+         - 分岐ツリーの表示（メインライン + 分岐を視覚的に区別）
+      4. App.tsx にルーティング追加
+
+      【注意】
+      - cmd_104（悪手検知）の機能と連携すること
+      - 分岐はメモリ内で保持（永続化不要）
+
+  - id: cmd_111
+    timestamp: "2026-02-10T09:29:50"
+    command: "Phase 2 評価関数学習を実装せよ"
+    project: neo_shogi
+    priority: high
+    status: dispatched
+    assigned_to: ashigaru6
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）にAI評価関数の自動学習機能を実装。
+      Phase 1（cmd_089 自己対戦）で生成した棋譜データから評価パラメータを最適化する。
+
+      【バックエンド】
+      1. src/Shogi/Engine/Learning.hs 新設
+         - 自己対戦の棋譜データ（data/selfplay/）から勝敗を読み込み
+         - 各局面の特徴量抽出（駒種×位置の二値ベクトル）
+         - ロジスティック回帰で勝率予測モデルを学習
+         - 学習済みパラメータをEvalWeightsに変換
+         - 世代スナップショット保存（Generation.hs連携）
+
+      2. 学習ループ
+         - 自己対戦N局 → 特徴量抽出 → 重み更新 → 新世代保存
+         - 新世代 vs 旧世代の検証対局（勝率が上回れば採用）
+         - 世代番号をインクリメント
+
+      3. API
+         - POST /api/learning/train — 学習開始（棋譜数、学習率、エポック数）
+         - GET /api/learning/status — 学習進捗
+         - GET /api/generations — 全世代一覧（Elo推定、勝率等）
+         - POST /api/generations/{id}/activate — 特定世代をAIに適用
+
+      【フロントエンド】
+      4. LearningPanel.tsx 新設
+         - 学習設定UI（棋譜数、学習率）
+         - 学習進捗プログレスバー
+         - 世代一覧テーブル（世代番号、Elo推定、日時）
+         - 世代間のElo推移グラフ（Recharts）
+         - 「この世代で対戦」ボタン
+
+      【注意】
+      - 学習はバックグラウンドで非同期実行（forkIO）
+      - 既存のEvaluation.hs, Generation.hs, SelfPlay.hsを活用
+      - Haskellの行列演算はhmatrixまたは手動実装（依存最小化）
+
+  - id: cmd_112
+    timestamp: "2026-02-10T09:29:50"
+    command: "定跡トレーナーを実装せよ"
+    project: neo_shogi
+    priority: medium
+    status: dispatched
+    assigned_to: ashigaru8
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）に定跡トレーナー機能を実装。
+      定跡DBの手順をインタラクティブに練習できる。
+
+      【機能】
+      - 定跡を選択すると練習モード開始
+      - 正しい手を指す → 「正解！」表示 → 次の手に進む
+      - 間違った手を指す → 「不正解。正解はXXです」表示 → 正解を矢印表示
+      - 手番ごとに正解/不正解をカウント
+      - 最後まで到達したら正答率を表示
+      - 間違えた箇所を復習する機能
+
+      【バックエンド】
+      1. POST /api/joseki/{id}/check — 特定の定跡の特定手数目で指し手が正解か判定
+         - 定跡DBのmovesと照合
+         - 正解/不正解 + 正解手を返す
+      2. cmd_109の定跡DB修正が前提
+
+      【フロントエンド】
+      3. JosekiTrainer.tsx 新設
+         - 定跡選択画面（カテゴリ別フィルタ）
+         - 練習画面（Board + 正解/不正解フィードバック）
+         - 不正解時にHintArrowで正解手を表示
+         - 進捗バー（何手目/全手数）
+         - 完了時の正答率サマリ
+      4. App.tsx にルーティング追加
+
+  - id: cmd_113
+    timestamp: "2026-02-10T09:29:50"
+    command: "AI自己対戦プレビューを複数盤面同時表示に対応せよ"
+    project: neo_shogi
+    priority: medium
+    status: dispatched
+    assigned_to: ashigaru7
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）のAI自己対戦プレビューを
+      複数対局の盤面を同時表示できるように拡張せよ。
+
+      【バックエンド】
+      1. GET /api/selfplay/live を拡張
+         - 並列実行中の全対局の盤面状態を配列で返す
+         - 各対局: gameNumber, board, lastMove, moveCount, currentPlayer, captured
+
+      【フロントエンド】
+      2. SelfPlayPanel.tsx の盤面プレビューエリアを拡張
+         - 並列対局数に応じてグリッド表示（2x2, 2x3等）
+         - 各盤面はコンパクトサイズ（Boardコンポーネント再利用、小サイズ）
+         - 各盤面にゲーム番号・手数表示
+         - 対局が終了した盤面は結果（先手勝ち/後手勝ち/引き分け）を表示
+         - レスポンシブ対応（画面幅に応じてグリッド列数調整）
+
+  - id: cmd_114
+    timestamp: "2026-02-10T09:29:50"
+    command: "駒画像のリンク切れを修正せよ"
+    project: neo_shogi
+    priority: high
+    status: dispatched
+    assigned_to: ashigaru4
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）で駒画像のリンクが切れている。
+
+      【調査・修正】
+      1. frontend/public/assets/pieces/ に駒SVGファイルが存在するか確認
+      2. Board.tsx（またはBoardGrid等のリファクタリング後ファイル）で駒画像のパスを確認
+      3. Viteのpublic配信パスと実際のファイル配置が一致しているか確認
+      4. 各バリアント（standard, mini, chu）の駒が正しく表示されるか確認
+      5. 国際駒（international）のSVGパスも確認
+      6. リンク切れの原因を特定して修正
+
+      ※ 過去にも同様の問題があった（Viteキャッシュ、publicディレクトリ配置ミス等）
+      コンパイル成功・動作確認必須。
+
+  - id: cmd_115
+    timestamp: "2026-02-10T10:15:00"
+    command: "SPA→機能別URL分割+React Router導入"
+    project: neo_shogi
+    priority: high
+    status: dispatched
+    assigned_to: ashigaru3
+    details: |
+      neo_shogi（パス: /mnt/e/creative/program/neo_shogi）のフロントエンドを
+      SPA単一ページからReact Routerによる機能別URL分割に移行せよ。
+
+      【現状】
+      App.tsxで page state による条件分岐レンダリング（React Router未使用）。
+      type Page = 'home' | 'lobby' | 'game' | 'tsume' | 'joseki' | 'spectate' | 'selfplay'
+
+      【URL設計】
+      /                    → WelcomeScreen（ホーム）
+      /game                → GameView（対局画面、新規対局開始）
+      /game/:id            → GameView（特定ゲームID参加/再開）
+      /game/:id/review     → ReviewMode（感想戦 ※cmd_110で新設）
+      /lobby               → Lobby（マルチプレイヤーロビー）
+      /lobby/:roomId       → Lobby（特定ルーム参加）
+      /spectate/:id        → GameView spectator mode（観戦）
+      /tsume               → TsumeShogi（詰将棋）
+      /joseki              → JosekiLibrary（定跡辞典）
+      /joseki/trainer      → JosekiTrainer（定跡トレーナー ※cmd_112で新設）
+      /selfplay            → SelfPlayPanel（AI自己対戦）
+      /learning            → LearningPanel（評価関数学習 ※cmd_111で新設）
+
+      【実装手順】
+      1. react-router-dom をインストール（npm install react-router-dom）
+      2. App.tsx を BrowserRouter + Routes 構成にリファクタリング
+         - page stateを廃止し、useNavigate / Link に置換
+         - 既存の lazy() インポートはそのまま活用
+         - Suspense + PageLoading のfallbackパターンも維持
+      3. 各コンポーネントの onBack コールバックを useNavigate(-1) または navigate('/') に置換
+      4. WelcomeScreen のボタンを Link コンポーネントに変更
+      5. GameView の遷移（ロビーから、新規対局から等）を navigate() に置換
+      6. Viteの設定でhistory fallback対応（vite.config.tsにbase設定確認）
+      7. 404ページ（NotFound）を簡易実装（ホームへリダイレクト）
+
+      【注意】
+      - cmd_110（感想戦）、cmd_111（学習）、cmd_112（定跡トレーナー）のルートも
+        ルーター定義には含めるが、コンポーネントが未実装なら
+        「Coming Soon」プレースホルダーで仮配置すること
+      - 既存の setPage コールバックを全て navigate に置換すること（混在禁止）
+      - GameView は gameId をURLパラメータから取得できるようにする
+      - ブラウザの戻る/進むボタンが正しく動作すること
+      - 直接URL入力でも正しいページに遷移すること
+      - 既存の lazy loading は維持すること（コード分割の恩恵を保つ）
+      - cmd_110/111/112より先に実行すること（他のcmdはこのルーター上にページを追加する）
