@@ -183,3 +183,5 @@
 !.github/
 !.github/workflows/
 !.github/workflows/*.yml
+.venv/lib/python3.10/site-packages/pyyaml-6.0.3.dist-info/licenses/LICENSE
+.venv/lib/python3.10/site-packages/setuptools-59.6.0.dist-info/LICENSE
