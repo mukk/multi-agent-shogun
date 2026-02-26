@@ -10,18 +10,23 @@
 
 [![GitHub Stars](https://img.shields.io/github/stars/yohey-w/multi-agent-shogun?style=social)](https://github.com/yohey-w/multi-agent-shogun)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![v3.0 Multi-CLI](https://img.shields.io/badge/v3.0-Multi--CLI_Support-ff6600?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHRleHQgeD0iMCIgeT0iMTIiIGZvbnQtc2l6ZT0iMTIiPuKalTwvdGV4dD48L3N2Zz4=)](https://github.com/yohey-w/multi-agent-shogun)
+[![v3.5 Dynamic Model Routing](https://img.shields.io/badge/v3.5-Dynamic_Model_Routing-ff6600?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHRleHQgeD0iMCIgeT0iMTIiIGZvbnQtc2l6ZT0iMTIiPuKalTwvdGV4dD48L3N2Zz4=)](https://github.com/yohey-w/multi-agent-shogun)
 [![Shell](https://img.shields.io/badge/Shell%2FBash-100%25-green)]()
 
 [English](README.md) | [日本語](README_ja.md)
 
 </div>
 
-<!-- <p align="center">
-  <img src="assets/screenshots/tmux_multiagent_9panes.png" alt="multi-agent-shogun: 9ペインが並列稼働" width="800">
-</p> -->
+<p align="center">
+  <img src="images/screenshots/hero/latest-translucent-20260210-190453.png" alt="将軍ペインでの最新半透過セッションキャプチャ" width="940">
+</p>
 
-<p align="center"><i>家老1体が足軽8体を統率 — 実際の稼働画面、モックデータなし</i></p>
+<p align="center">
+  <img src="images/screenshots/hero/latest-translucent-20260208-084602.png" alt="将軍ペインでの自然言語コマンド入力" width="420">
+  <img src="images/company-creed-all-panes.png" alt="家老と足軽が全ペインで並列反応する様子" width="520">
+</p>
+
+<p align="center"><i>家老1体が足軽7体+軍師1体を統率 — 実際の稼働画面、モックデータなし</i></p>
 
 ---
 
@@ -52,7 +57,7 @@ bash shutsujin_departure.sh  # 全エージェント起動
 **multi-agent-shogun** は、複数のAIコーディングCLIインスタンスを同時に実行し、戦国時代の軍制のように統率するシステムです。**Claude Code**、**OpenAI Codex**、**GitHub Copilot**、**Kimi Code** の4CLIに対応。
 
 **なぜ使うのか？**
-- 1つの命令で、8体のAIワーカーが並列で実行
+- 1つの命令で、7体のAIワーカー+1体の軍師が並列で実行
 - 待ち時間なし - タスクがバックグラウンドで実行中も次の命令を出せる
 - AIがセッションを跨いであなたの好みを記憶（Memory MCP）
 - ダッシュボードでリアルタイム進捗確認
@@ -69,10 +74,10 @@ bash shutsujin_departure.sh  # 全エージェント起動
     │    KARO     │  ← タスクをワーカーに分配
     └──────┬──────┘
            │
-  ┌─┬─┬─┬─┴─┬─┬─┬─┐
-  │1│2│3│4│5│6│7│8│  ← 8体のワーカーが並列実行
-  └─┴─┴─┴─┴─┴─┴─┴─┘
-      ASHIGARU
+  ┌─┬─┬─┬─┴─┬─┬─┬────────┐
+  │1│2│3│4│5│6│7│ GUNSHI │  ← 7体のワーカー + 1体の軍師
+  └─┴─┴─┴─┴─┴─┴─┴────────┘
+     ASHIGARU      軍師
 ```
 
 ---
@@ -81,14 +86,15 @@ bash shutsujin_departure.sh  # 全エージェント起動
 
 多くのマルチエージェントフレームワークは、連携のためにAPIトークンを消費します。Shogunは違います。
 
-|                    | Claude Code `Task` ツール     | LangGraph                        | CrewAI                       | **multi-agent-shogun**                |
-|--------------------|-------------------------------|----------------------------------|------------------------------|---------------------------------------|
-| **アーキテクチャ** | 1プロセス内のサブエージェント | グラフベースの状態機械           | ロールベースエージェント     | tmux経由の階層構造                    |
-| **並列性**         | 逐次実行（1つずつ）           | 並列ノード（v0.2+）              | 限定的                       | **8体の独立エージェント**             |
-| **連携コスト**     | TaskごとにAPIコール           | API + インフラ（Postgres/Redis） | API + CrewAIプラットフォーム | **ゼロ**（YAML + tmux）               |
-| **可観測性**       | Claudeのログのみ              | LangSmith連携                    | OpenTelemetry                | **ライブtmuxペイン** + ダッシュボード |
-| **スキル発見**     | なし                          | なし                             | なし                         | **ボトムアップ自動提案**              |
-| **セットアップ**   | Claude Code内蔵               | 重い（インフラ必要）             | pip install                  | シェルスクリプト                      |
+| | Claude Code `Task` ツール | Claude Code Agent Teams | LangGraph | CrewAI | **multi-agent-shogun** |
+|---|---|---|---|---|---|
+| **アーキテクチャ** | 1プロセス内のサブエージェント | リード+チームメイト（JSONメールボックス） | グラフベースの状態機械 | ロールベースエージェント | tmux経由の階層構造 |
+| **並列性** | 逐次実行（1つずつ） | 複数の独立セッション | 並列ノード（v0.2+） | 限定的 | **8体の独立エージェント** |
+| **連携コスト** | TaskごとにAPIコール | 高い（各チームメイト=別コンテキスト） | API + インフラ（Postgres/Redis） | API + CrewAIプラットフォーム | **ゼロ**（YAML + tmux） |
+| **Multi-CLI** | Claude Codeのみ | Claude Codeのみ | 任意のLLM API | 任意のLLM API | **4 CLI**（Claude/Codex/Copilot/Kimi） |
+| **可観測性** | Claudeのログのみ | tmux分割ペインまたはインプロセス | LangSmith連携 | OpenTelemetry | **ライブtmuxペイン** + ダッシュボード |
+| **スキル発見** | なし | なし | なし | なし | **ボトムアップ自動提案** |
+| **セットアップ** | Claude Code内蔵 | 内蔵（実験的） | 重い（インフラ必要） | pip install | シェルスクリプト |
 
 ### 他のフレームワークとの違い
 
@@ -104,12 +110,12 @@ bash shutsujin_departure.sh  # 全エージェント起動
 
 多くのAIコーディングツールはトークン従量課金。8体のOpus級エージェントをAPI経由で動かすと**$100+/時間**。CLI定額サブスクはこれを逆転させる：
 
-|                          | API（従量課金）     | CLI（定額制） |
-|--------------------------|---------------------|---------------|
-| **8エージェント × Opus** | ~$100+/時間         | ~$200/月      |
-| **コスト予測性**         | 予測不能なスパイク  | 月額固定      |
-| **使用時の心理**         | 1トークンが気になる | 使い放題      |
-| **実験の余地**           | 制約あり            | 自由に投入    |
+| | API（従量課金） | CLI（定額制） |
+|---|---|---|
+| **8エージェント × Opus** | ~$100+/時間 | ~$200/月 |
+| **コスト予測性** | 予測不能なスパイク | 月額固定 |
+| **使用時の心理** | 1トークンが気になる | 使い放題 |
+| **実験の余地** | 制約あり | 自由に投入 |
 
 **「AIを使い倒す」思想** — 定額CLIサブスクなら、8体の足軽を気兼ねなく投入できる。1時間稼働でも24時間稼働でもコストは同じ。「まあまあ」と「徹底的に」の二択で悩む必要がない — エージェントを増やせばいい。
 
@@ -117,12 +123,12 @@ bash shutsujin_departure.sh  # 全エージェント起動
 
 将軍システムは特定ベンダーに依存しない。4つのCLIツールに対応し、それぞれの強みを活かす：
 
-| CLI                | 特徴                                                                                | デフォルトモデル  |
-|--------------------|-------------------------------------------------------------------------------------|-------------------|
-| **Claude Code**    | tmux統合の実績、Memory MCP、専用ファイルツール（Read/Write/Edit/Glob/Grep）         | Claude Sonnet 4.5 |
-| **OpenAI Codex**   | サンドボックス実行、JSONL構造化出力、`codex exec` ヘッドレスモード                  | gpt-5.3-codex     |
-| **GitHub Copilot** | GitHub MCP組込、4種の特化エージェント（Explore/Task/Plan/Code-review）、`/delegate` | Claude Sonnet 4.5 |
-| **Kimi Code**      | 無料プランあり、多言語サポート                                                      | Kimi k2           |
+| CLI | 特徴 | デフォルトモデル |
+|-----|------|-----------------|
+| **Claude Code** | tmux統合の実績、Memory MCP、専用ファイルツール（Read/Write/Edit/Glob/Grep） | Claude Sonnet 4.6 |
+| **OpenAI Codex** | サンドボックス実行、JSONL構造化出力、`codex exec` ヘッドレスモード | gpt-5.3-codex |
+| **GitHub Copilot** | GitHub MCP組込、4種の特化エージェント（Explore/Task/Plan/Code-review）、`/delegate` | Claude Sonnet 4.6 |
+| **Kimi Code** | 無料プランあり、多言語サポート | Kimi k2 |
 
 統一ビルドシステムが共有テンプレートからCLI固有の指示書を自動生成：
 
@@ -209,7 +215,7 @@ dashboard.md に掲載 → 殿が承認 → .claude/commands/ にスキル作成
 </td>
 <td>
 
- **Ubuntu を開いて以下を実行**（初回のみ）
+🐧 **Ubuntu を開いて以下を実行**（初回のみ）
 
 ```bash
 cd /mnt/c/tools/multi-agent-shogun
@@ -268,11 +274,11 @@ cd /mnt/c/tools/multi-agent-shogun
 
 **必要なもの（全部無料）：**
 
-| 名前                                | 一言で言うと       | 役割                                       |
-|-------------------------------------|--------------------|--------------------------------------------|
+| 名前 | 一言で言うと | 役割 |
+|------|------------|------|
 | [Tailscale](https://tailscale.com/) | 外から自宅に届く道 | カフェからでもトイレからでも自宅PCに繋がる |
-| SSH                                 | その道を歩く足     | Tailscaleの道を通って自宅PCにログインする  |
-| [Termux](https://termux.dev/)       | スマホの黒い画面   | SSHを使うために必要。スマホに入れるだけ    |
+| SSH | その道を歩く足 | Tailscaleの道を通って自宅PCにログインする |
+| [Termux](https://termux.dev/) | スマホの黒い画面 | SSHを使うために必要。スマホに入れるだけ |
 
 **セットアップ：**
 
@@ -360,11 +366,12 @@ wsl --install
 <details>
 <summary>📋 <b>スクリプトリファレンス</b>（クリックで展開）</summary>
 
-| スクリプト               | 用途                                                                     | 実行タイミング |
-|--------------------------|--------------------------------------------------------------------------|----------------|
-| `install.bat`            | Windows: WSL2 + Ubuntu のセットアップ                                    | 初回のみ       |
-| `first_setup.sh`         | tmux、Node.js、Claude Code CLI のインストール + Memory MCP設定           | 初回のみ       |
-| `shutsujin_departure.sh` | tmuxセッション作成 + Claude Code起動 + 指示書読み込み + ntfyリスナー起動 | 毎日           |
+| スクリプト | 用途 | 実行タイミング |
+|-----------|------|---------------|
+| `install.bat` | Windows: WSL2 + Ubuntu のセットアップ | 初回のみ |
+| `first_setup.sh` | tmux、Node.js、Claude Code CLI のインストール + Memory MCP設定 | 初回のみ |
+| `shutsujin_departure.sh` | tmuxセッション作成 + CLI起動 + 指示書読み込み + ntfyリスナー起動 | 毎日 |
+| `scripts/switch_cli.sh` | エージェントのCLI/モデルをライブ切替（settings.yaml → /exit → 再起動） | 必要時 |
 
 ### `install.bat` が自動で行うこと：
 - ✅ WSL2がインストールされているかチェック（未インストールなら案内）
@@ -389,13 +396,13 @@ wsl --install
 
 依存関係を手動でインストールする場合：
 
-| 要件                     | インストール方法                                  | 備考                                                  |
-|--------------------------|---------------------------------------------------|-------------------------------------------------------|
-| WSL2 + Ubuntu            | PowerShellで `wsl --install`                      | Windowsのみ                                           |
-| Ubuntuをデフォルトに設定 | `wsl --set-default Ubuntu`                        | スクリプトの動作に必要                                |
-| tmux                     | `sudo apt install tmux`                           | ターミナルマルチプレクサ                              |
-| Node.js v20+             | `nvm install 20`                                  | MCPサーバーに必要                                     |
-| Claude Code CLI          | `curl -fsSL https://claude.ai/install.sh \| bash` | Anthropic公式CLI（ネイティブ版を推奨。npm版は非推奨） |
+| 要件 | インストール方法 | 備考 |
+|------|-----------------|------|
+| WSL2 + Ubuntu | PowerShellで `wsl --install` | Windowsのみ |
+| Ubuntuをデフォルトに設定 | `wsl --set-default Ubuntu` | スクリプトの動作に必要 |
+| tmux | `sudo apt install tmux` | ターミナルマルチプレクサ |
+| Node.js v20+ | `nvm install 20` | MCPサーバーに必要 |
+| Claude Code CLI | `curl -fsSL https://claude.ai/install.sh \| bash` | Anthropic公式CLI（ネイティブ版を推奨。npm版は非推奨） |
 
 </details>
 
@@ -405,15 +412,16 @@ wsl --install
 
 どちらのオプションでも、**10体のAIエージェント**が自動起動します：
 
-| エージェント       | 役割                          | 数 |
-|--------------------|-------------------------------|----|
-| 🏯 将軍（Shogun）   | 総大将 - あなたの命令を受ける | 1  |
-| 📋 家老（Karo）     | 管理者 - タスクを分配         | 1  |
-| ⚔️ 足軽（Ashigaru） | ワーカー - 並列でタスク実行   | 8  |
+| エージェント | 役割 | 数 |
+|-------------|------|-----|
+| 🏯 将軍（Shogun） | 総大将 - あなたの命令を受ける | 1 |
+| 📋 家老（Karo） | 管理者 - タスク分配・簡易QC・ダッシュボード管理 | 1 |
+| ⚔️ 足軽（Ashigaru） | ワーカー - 実装タスクを並列実行 | 7 |
+| 🧠 軍師（Gunshi） | 参謀 - 分析・評価・設計など高度な思考タスク | 1 |
 
 tmuxセッションが作成されます：
 - `shogun` - ここに接続してコマンドを出す
-- `multiagent` - ワーカーがバックグラウンドで稼働
+- `multiagent` - 家老・足軽・軍師がバックグラウンドで稼働
 
 ---
 
@@ -450,11 +458,11 @@ JavaScriptフレームワーク上位5つを調査して比較表を作成せよ
 
 ```markdown
 ## 進行中
-| ワーカー | タスク      | 状態   |
-|----------|-------------|--------|
-| 足軽 1   | React調査   | 実行中 |
-| 足軽 2   | Vue調査     | 実行中 |
-| 足軽 3   | Angular調査 | 完了   |
+| ワーカー | タスク | 状態 |
+|----------|--------|------|
+| 足軽 1 | React調査 | 実行中 |
+| 足軽 2 | Vue調査 | 実行中 |
+| 足軽 3 | Angular調査 | 完了 |
 ```
 
 ### 詳細なフロー
@@ -467,15 +475,19 @@ JavaScriptフレームワーク上位5つを調査して比較表を作成せよ
 
 家老がタスクをサブタスクに分解：
 
-| ワーカー | 割当内容                    |
-|----------|-----------------------------|
-| 足軽 1   | Notion MCP調査              |
-| 足軽 2   | GitHub MCP調査              |
-| 足軽 3   | Playwright MCP調査          |
-| 足軽 4   | Memory MCP調査              |
-| 足軽 5   | Sequential Thinking MCP調査 |
+| ワーカー | 割当内容 |
+|----------|----------|
+| 足軽 1 | Notion MCP調査 |
+| 足軽 2 | GitHub MCP調査 |
+| 足軽 3 | Playwright MCP調査 |
+| 足軽 4 | Memory MCP調査 |
+| 足軽 5 | Sequential Thinking MCP調査 |
 
 5体の足軽が同時に調査開始。リアルタイムで作業を見ることができます。
+
+<p align="center">
+  <img src="images/company-creed-all-panes.png" alt="足軽がtmux全ペインで並列実行する様子" width="900">
+</p>
 
 結果は完了次第 `dashboard.md` に表示されます。
 
@@ -536,8 +548,8 @@ Step 1: メッセージを書く            Step 2: エージェントを起こ�
 └──────────────────────┘           │                          │
                                    │ 起床方法:                │
                                    │  1. 自己監視（スキップ） │
-                                   │  2. pty直接書き込み      │
-                                   │    （tmux完全バイパス）   │
+                                   │  2. tmux send-keys       │
+                                   │    （短いnudgeのみ）     │
                                    └──────────────────────────┘
 
 Step 3: エージェントが自分のinboxを読む
@@ -549,19 +561,65 @@ Step 3: エージェントが自分のinboxを読む
 └──────────────────────────────────┘
 ```
 
-**起床の仕組み（3段階フォールバック）:**
+**起床の仕組み:**
 
-| 優先順位 | 方式                | 何が起きるか                                                          | いつ使われるか                                         |
-|----------|---------------------|-----------------------------------------------------------------------|--------------------------------------------------------|
-| 1番      | **自己監視**        | エージェントが自分のinboxファイルを監視 — 自力で起床、nudge不要       | エージェント自身が `inotifywait` を実行中              |
-| 2番      | **pty直接書き込み** | nudgeをptyデバイス（`/dev/pts/N`）に直接書き込み — tmuxを完全バイパス | デフォルト — カーソルバグなし、キー干渉なし、CLI非依存 |
+| 優先順位 | 方式 | 何が起きるか | いつ使われるか |
+|----------|------|-------------|---------------|
+| 1番 | **自己監視** | エージェントが自分のinboxファイルを監視 — 自力で起床、nudge不要 | エージェント自身が `inotifywait` を実行中 |
+| 2番 | **tmux send-keys** | `tmux send-keys` で短いnudgeを送信（テキストとEnterを分離送信、Codex CLI対応） | 自己監視が反応しない場合のフォールバック |
+
+**3段階エスカレーション（v3.2）** — エージェントがnudgeに反応しない場合:
+
+| フェーズ | タイミング | アクション |
+|---------|----------|-----------|
+| Phase 1 | 0-2分 | 標準nudge（`inbox3` テキスト + Enter） |
+| Phase 2 | 2-4分 | Escape×2 + C-c でカーソルリセット、その後nudge |
+| Phase 3 | 4分以上 | `/clear` 送信でセッション強制リセット（5分間に最大1回） |
 
 **設計のポイント:**
 - **メッセージ内容はtmuxを経由しない** — 送るのは短い「メールが届いたよ」の通知だけ。中身はエージェントが自分でファイルを読む。これにより文字化けや配信ハングを根絶。
 - **待機中のCPU使用率ゼロ** — `inotifywait` はカーネルイベントでブロック（ポーリングループではない）。メッセージ間のCPUは0%。
 - **配信保証** — ファイル書き込みが成功すれば、メッセージは確実にそこにある。消失なし、リトライ不要。
 
-### 📸 5. スクリーンショット連携
+### 📊 5. エージェント稼働確認
+
+どのエージェントが稼働中か待機中か — コマンド1つで即座に確認：
+
+```bash
+# プロジェクトモード: タスク/inbox情報付きフルステータス
+bash scripts/agent_status.sh
+
+# スタンドアロンモード: 任意のtmuxセッションで動作
+bash scripts/agent_status.sh --session mysession --lang en
+```
+
+**プロジェクトモード出力:**
+```
+Agent      CLI     Pane      Task ID                                    Status     Inbox
+---------- ------- --------- ------------------------------------------ ---------- -----
+karo       claude  待機中    ---                                        ---        0
+ashigaru1  codex   稼働中    subtask_042a_research                      assigned   0
+ashigaru2  codex   待機中    subtask_042b_review                        done       0
+gunshi     claude  稼働中    subtask_042c_analysis                      assigned   0
+```
+
+**スタンドアロンモード出力**（プロジェクト設定不要）:
+```
+Pane                           State      Agent ID
+------------------------------ ---------- ----------
+multiagent:agents.0            IDLE       karo
+multiagent:agents.1            BUSY       ashigaru1
+multiagent:agents.8            BUSY       gunshi
+```
+
+判定は **Claude Code** と **Codex CLI** の両方に対応。各tmuxペインの末尾5行からCLI固有のプロンプト/スピナーパターンを検出。判定ロジックは `lib/agent_status.sh` に分離されており、自作スクリプトからも利用可能：
+
+```bash
+source lib/agent_status.sh
+agent_is_busy_check "multiagent:agents.3" && echo "稼働中" || echo "待機中"
+```
+
+### 📸 6. スクリーンショット連携
 
 VSCode拡張のClaude Codeはスクショを貼り付けて事象を説明できます。このCLIシステムでも同等の機能を実現：
 
@@ -583,16 +641,16 @@ screenshot:
 - エラーメッセージを見せる
 - 変更前後の状態を比較
 
-### 📁 6. コンテキスト管理
+### 📁 7. コンテキスト管理
 
 効率的な知識共有のため、四層構造のコンテキストを採用：
 
-| レイヤー            | 場所                                                                 | 用途                                       |
-|---------------------|----------------------------------------------------------------------|--------------------------------------------|
-| Layer 1: Memory MCP | `memory/shogun_memory.jsonl`                                         | プロジェクト横断・セッションを跨ぐ長期記憶 |
-| Layer 2: Project    | `config/projects.yaml`, `projects/<id>.yaml`, `context/{project}.md` | プロジェクト固有情報・技術知見             |
-| Layer 3: YAML Queue | `queue/shogun_to_karo.yaml`, `queue/tasks/`, `queue/reports/`        | タスク管理・指示と報告の正データ           |
-| Layer 4: Session    | CLAUDE.md, instructions/*.md                                         | 作業中コンテキスト（/clearで破棄）         |
+| レイヤー | 場所 | 用途 |
+|---------|------|------|
+| Layer 1: Memory MCP | `memory/shogun_memory.jsonl` | プロジェクト横断・セッションを跨ぐ長期記憶 |
+| Layer 2: Project | `config/projects.yaml`, `projects/<id>.yaml`, `context/{project}.md` | プロジェクト固有情報・技術知見 |
+| Layer 3: YAML Queue | `queue/shogun_to_karo.yaml`, `queue/tasks/`, `queue/reports/` | タスク管理・指示と報告の正データ |
+| Layer 4: Session | CLAUDE.md, instructions/*.md | 作業中コンテキスト（/clearで破棄） |
 
 この設計により：
 - どの足軽でも任意のプロジェクトを担当可能
@@ -617,28 +675,28 @@ screenshot:
 
 すべてのプロジェクトで同じ7セクション構成のテンプレートを使用：
 
-| セクション    | 目的                             |
-|---------------|----------------------------------|
-| What          | プロジェクトの概要説明           |
-| Why           | 目的と成功の定義                 |
-| Who           | 関係者と責任者                   |
-| Constraints   | 期限、予算、制約                 |
+| セクション | 目的 |
+|-----------|------|
+| What | プロジェクトの概要説明 |
+| Why | 目的と成功の定義 |
+| Who | 関係者と責任者 |
+| Constraints | 期限、予算、制約 |
 | Current State | 進捗、次のアクション、ブロッカー |
-| Decisions     | 決定事項と理由の記録             |
-| Notes         | 自由記述のメモ・気づき           |
+| Decisions | 決定事項と理由の記録 |
+| Notes | 自由記述のメモ・気づき |
 
 この統一フォーマットにより：
 - どのエージェントでも素早くオンボーディング可能
 - すべてのプロジェクトで一貫した情報管理
 - 足軽間の作業引き継ぎが容易
 
-### 📱 7. スマホ通知（ntfy）
+### 📱 8. スマホ通知（ntfy）
 
 スマホと将軍の間で双方向通信 — SSH不要、Tailscale不要、サーバ不要。
 
-| 方向                      | 仕組み                                                                                                                                                |
-|---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **スマホ → 将軍**         | ntfyアプリからメッセージを送信 → `ntfy_listener.sh` がストリーミングで受信 → 将軍が自動処理                                                           |
+| 方向 | 仕組み |
+|------|--------|
+| **スマホ → 将軍** | ntfyアプリからメッセージを送信 → `ntfy_listener.sh` がストリーミングで受信 → 将軍が自動処理 |
 | **家老 → スマホ（直接）** | 家老が `dashboard.md` を更新する際、`scripts/ntfy.sh` 経由で直接プッシュ通知を送信 — **将軍を経由しない**（将軍は人間との対話用、進捗報告用ではない） |
 
 ```
@@ -660,12 +718,12 @@ screenshot:
 
 **通知の例：**
 
-| イベント       | 通知内容                                   |
-|----------------|--------------------------------------------|
-| コマンド完了   | `✅ cmd_042 complete — 5/5 subtasks done`   |
-| タスク失敗     | `❌ subtask_042c failed — API rate limit`   |
-| 対応要         | `🚨 Action needed: approve skill candidate` |
-| ストリーク更新 | `🔥 3-day streak! 12/12 tasks today`        |
+| イベント | 通知内容 |
+|----------|----------|
+| コマンド完了 | `✅ cmd_042 complete — 5/5 subtasks done` |
+| タスク失敗 | `❌ subtask_042c failed — API rate limit` |
+| 対応要 | `🚨 Action needed: approve skill candidate` |
+| ストリーク更新 | `🔥 3-day streak! 12/12 tasks today` |
 
 無料、アカウント不要、サーバ管理不要。[ntfy.sh](https://ntfy.sh) — オープンソースのプッシュ通知サービスを利用。
 
@@ -710,14 +768,14 @@ bash scripts/ntfy_listener.sh
 
 **トラブルシューティング:**
 
-| 症状                                 | 対処                                                                                                     |
-|--------------------------------------|----------------------------------------------------------------------------------------------------------|
-| スマホに通知が来ない                 | `settings.yaml` とntfyアプリのトピック名が完全に一致しているか確認                                       |
-| リスナーが起動しない                 | `bash scripts/ntfy_listener.sh` をフォアグラウンドで実行してエラーを確認                                 |
-| スマホ→将軍が動かない                | リスナーが稼働中か確認: `pgrep -f ntfy_listener.sh`                                                      |
-| メッセージが将軍に届かない           | `queue/ntfy_inbox.yaml` を確認 — メッセージがあれば将軍が処理中の可能性                                  |
-| "ntfy_topic not configured" エラー   | `config/settings.yaml` に `ntfy_topic: "your-topic"` を追加                                              |
-| 通知が重複する                       | 再接続時の正常動作 — 将軍がメッセージIDで重複排除します                                                  |
+| 症状 | 対処 |
+|------|------|
+| スマホに通知が来ない | `settings.yaml` とntfyアプリのトピック名が完全に一致しているか確認 |
+| リスナーが起動しない | `bash scripts/ntfy_listener.sh` をフォアグラウンドで実行してエラーを確認 |
+| スマホ→将軍が動かない | リスナーが稼働中か確認: `pgrep -f ntfy_listener.sh` |
+| メッセージが将軍に届かない | `queue/ntfy_inbox.yaml` を確認 — メッセージがあれば将軍が処理中の可能性 |
+| "ntfy_topic not configured" エラー | `config/settings.yaml` に `ntfy_topic: "your-topic"` を追加 |
+| 通知が重複する | 再接続時の正常動作 — 将軍がメッセージIDで重複排除します |
 | トピック名を変更したのに通知が来ない | リスナーの再起動が必要: `pkill -f ntfy_listener.sh && nohup bash scripts/ntfy_listener.sh &>/dev/null &` |
 
 #### SayTask通知
@@ -728,33 +786,34 @@ bash scripts/ntfy_listener.sh
 - **Eat the Frog** 🐸: その日の最も難しいタスクを「カエル」としてマーク。完了すると特別な祝福通知が送信される
 - **日次進捗**: `12/12 tasks today` — 視覚的な完了フィードバックがArbeitslust効果（仕事の進捗による喜び）を強化
 
-### 🖼️ 8. ペインボーダータスク表示
+### 🖼️ 9. ペインボーダータスク表示
 
 各tmuxペインのボーダーにエージェントの現在のタスクを表示：
 
 ```
-┌ ashigaru1 (Sonnet) VF requirements ─┬ ashigaru3 (Opus) API research ──────┐
+┌ ashigaru1 Sonnet+T VF requirements ──┬ ashigaru3 Opus+T API research ──────┐
 │                                      │                                     │
-│  Working on SayTask requirements     │  Researching REST API patterns      │
+│  SayTask要件定義中                   │  REST APIパターン調査中             │
 │                                      │                                     │
-├ ashigaru2 (Sonnet) ─────────────────┼ ashigaru4 (Opus) DB schema design ──┤
+├ ashigaru2 Sonnet ───────────────────┼ ashigaru4 Spark DBスキーマ設計 ─────┤
 │                                      │                                     │
-│  (idle — waiting for assignment)     │  Designing database schema          │
+│  （待機中 — 割当待ち）               │  データベーススキーマ設計中         │
 │                                      │                                     │
 └──────────────────────────────────────┴─────────────────────────────────────┘
 ```
 
-- **作業中**: `ashigaru1 (Sonnet) VF requirements` — エージェント名、モデル、タスク概要
-- **待機中**: `ashigaru1 (Sonnet)` — モデル名のみ、タスクなし
+- **作業中**: `ashigaru1 Sonnet+T VF requirements` — エージェント名、モデル（Thinkingインジケータ付き）、タスク概要
+- **待機中**: `ashigaru2 Sonnet` — モデル名のみ、タスクなし
+- **表示名**: Sonnet, Opus, Haiku, Codex, Spark — `+T` サフィックス = Extended Thinking有効
 - 家老がタスク割当・完了時に自動更新
 - 9ペインを一目見れば、誰が何をしているか即座にわかる
 
-### 🔊 9. シャウトモード（戦国エコー）
+### 🔊 10. シャウトモード（戦国エコー）
 
 足軽がタスクを完了すると、パーソナライズされた戦国風の叫びをtmuxペインに表示します — 部下が働いている実感を得られる。
 
 ```
-┌ ashigaru1 (Sonnet) ──────────┬ ashigaru2 (Sonnet) ──────────┐
+┌ ashigaru1 Sonnet+T ─────────┬ ashigaru2 Sonnet+T ─────────┐
 │                               │                               │
 │  ⚔️ 足軽1号、任を果たし待機！ │  🔥 足軽2号、二番槍の意地！   │
 │  八刃一志の志、胸に刻む！     │  八刃一志！共に城を落とせ！   │
@@ -825,10 +884,10 @@ task:
 
 ### 変更前／変更後
 
-|                           変更前（v1）                           |                           変更後（v2）                            |
-|:----------------------------------------------------------------:|:-----------------------------------------------------------------:|
-| ![タスク一覧 v1](images/screenshots/ntfy_tasklist_v1_before.jpg) | ![タスク一覧 v2](images/screenshots/ntfy_tasklist_v2_aligned.jpg) |
-|                         生のタスクダンプ                         |                   きれいに整理された日次サマリ                    |
+| 変更前（v1） | 変更後（v2） |
+|:-----------:|:----------:|
+| ![タスク一覧 v1](images/screenshots/masked/ntfy_tasklist_v1_before.jpg) | ![タスク一覧 v2](images/screenshots/masked/ntfy_tasklist_v2_aligned.jpg) |
+| 生のタスクダンプ | きれいに整理された日次サマリ |
 
 > *注: スクリーンショットに表示されているトピック名は例です。自分専用のトピック名を使用してください。*
 
@@ -864,14 +923,14 @@ A: AIがベストを尽くして分類・スケジュールする。後で修正
 
 将軍システムには2つの補完的なタスクシステムがある：
 
-| 機能                         | SayTask（音声レイヤー） | cmdパイプライン（AI実行） |
-|------------------------------|:-----------------------:|:-------------------------:|
-| 音声入力 → タスク作成        |            ✅            |             —             |
-| 朝の通知ダイジェスト         |            ✅            |             —             |
-| Eat the Frog 🐸 選定          |            ✅            |             —             |
-| ストリーク追跡               |            ✅            |             ✅             |
-| AI実行タスク（複数ステップ） |            —            |             ✅             |
-| 8エージェント並列実行        |            —            |             ✅             |
+| 機能 | SayTask（音声レイヤー） | cmdパイプライン（AI実行） |
+|---|:-:|:-:|
+| 音声入力 → タスク作成 | ✅ | — |
+| 朝の通知ダイジェスト | ✅ | — |
+| Eat the Frog 🐸 選定 | ✅ | — |
+| ストリーク追跡 | ✅ | ✅ |
+| AI実行タスク（複数ステップ） | — | ✅ |
+| 8エージェント並列実行 | — | ✅ |
 
 SayTaskは個人の生産性を担当（キャプチャ → スケジュール → リマインド）。cmdパイプラインは複雑な作業を担当（リサーチ、コード、複数ステップのタスク）。両者はストリーク追跡を共有し、どちらのタスクを完了してもデイリーストリークにカウントされる。
 
@@ -879,38 +938,33 @@ SayTaskは個人の生産性を担当（キャプチャ → スケジュール �
 
 ## 🧠 モデル設定
 
-| エージェント | モデル | 思考モード       | 理由                                               |
-|--------------|--------|------------------|----------------------------------------------------|
-| 将軍         | Opus   | **有効（high）** | 殿との戦略議論・リサーチ・方針設計に深い推論が必要 |
-| 家老         | Opus   | 有効             | タスク分配には慎重な判断が必要                     |
-| 足軽1-4      | Sonnet | 有効             | コスト効率重視の標準タスク向け                     |
-| 足軽5-8      | Opus   | 有効             | 複雑なタスク向けのフル機能                         |
+| エージェント | モデル | 思考モード | 役割 |
+|-------------|--------|----------|------|
+| 将軍 | Opus | **有効（high）** | 殿の参謀。`--shogun-no-thinking` で中継専用モードに |
+| 家老 | Sonnet | 有効 | タスク分配・簡易QC・ダッシュボード管理 |
+| 軍師 | Opus | 有効 | 深い分析・設計レビュー・アーキテクチャ評価 |
+| 足軽1-7 | Sonnet 4.6 | 有効 | 実装：コード・リサーチ・ファイル操作 |
 
-将軍は殿（人間）の参謀として、タスク中継だけでなく戦略議論・リサーチ分析・方針設計を行う。これらはBloom's Taxonomy の Level 4-6（分析・評価・創造）に該当し、Thinking有効が必須。中継のみに特化したい場合は `--shogun-no-thinking` オプションで無効化可能。
+**Thinking制御**: `config/settings.yaml` でエージェントごとに `thinking: true/false` を設定可能。`thinking: false` の場合、`MAX_THINKING_TOKENS=0` で起動しExtended Thinkingを無効化。ペインボーダーにはThinking有効時に `+T` サフィックスが表示される（例: `Sonnet+T`、`Opus+T`）。
 
-### 陣形モード
+**ライブモデル切替**: `/shogun-model-switch` スキルで、システム全体を再起動せずに任意エージェントのCLI種別・モデル・Thinking設定を変更可能。詳細はスキルセクション参照。
 
-| 陣形                       | 足軽1-4 | 足軽5-8 | コマンド                      |
-|----------------------------|---------|---------|-------------------------------|
-| **平時の陣**（デフォルト） | Sonnet  | Opus    | `./shutsujin_departure.sh`    |
-| **決戦の陣**（全力）       | Opus    | Opus    | `./shutsujin_departure.sh -k` |
+**認知的複雑さ**でのルーティングは2段階：**エージェントルーティング**（足軽はL1-L3、軍師はL4-L6）と **足軽内のモデルルーティング**（`capability_tiers` でBloomレベルに応じて最適モデルを選択。下記「動的モデルルーティング」参照）。
 
-平時は半数を安いSonnetモデルで運用。ここぞという時に `-k`（`--kessen`）で全軍Opusの「決戦の陣」に切り替え。家老の判断で `/model opus` を送れば、個別の足軽を一時昇格させることも可能。
+### Bloom's Taxonomy → エージェントルーティング
 
-### Bloom's Taxonomy によるタスク分類
+タスクはBloom's Taxonomy（ブルームの分類法）に基づいて分類し、最適な**エージェント**にルーティングします：
 
-タスクはBloom's Taxonomy（ブルームの分類法）に基づいて分類し、最適なモデルに割り当てます：
+| レベル | カテゴリ | 内容 | ルーティング先 |
+|--------|----------|------|---------------|
+| L1 | 記憶 | 事実の想起、コピー、一覧化 | **足軽** |
+| L2 | 理解 | 説明、要約、言い換え | **足軽** |
+| L3 | 応用 | 手順の実行、既知パターンの実装 | **足軽** |
+| L4 | 分析 | 比較、調査、構造の分解 | **軍師** |
+| L5 | 評価 | 判断、批評、推奨 | **軍師** |
+| L6 | 創造 | 設計、構築、新しいソリューションの統合 | **軍師** |
 
-| レベル | カテゴリ | 内容                                   | モデル |
-|--------|----------|----------------------------------------|--------|
-| L1     | 記憶     | 事実の想起、コピー、一覧化             | Sonnet |
-| L2     | 理解     | 説明、要約、言い換え                   | Sonnet |
-| L3     | 応用     | 手順の実行、既知パターンの実装         | Sonnet |
-| L4     | 分析     | 比較、調査、構造の分解                 | Opus   |
-| L5     | 評価     | 判断、批評、推奨                       | Opus   |
-| L6     | 創造     | 設計、構築、新しいソリューションの統合 | Opus   |
-
-家老が各サブタスクにBloomレベルを付与し、適切なエージェント層にルーティングします。これにより、コスト効率の高い実行が実現します：定型作業はSonnetへ、複雑な推論はOpusへ。
+家老が各サブタスクにBloomレベルを付与し、適切なエージェントにルーティング。L1-L3は足軽に並列分配、L4-L6は軍師へ。簡単なL4タスク（小規模なコードレビュー等）は、家老の判断で足軽に回すこともある。
 
 ### タスク依存関係（blockedBy）
 
@@ -926,6 +980,37 @@ task:
 
 ブロック元のタスクが完了すると、家老が自動的に依存タスクのブロックを解除し、空いている足軽に割り当てます。これにより待機時間が削減され、依存タスクの効率的なパイプライン処理が可能になります。
 
+### 動的モデルルーティング（capability_tiers）
+
+エージェント単位のルーティングに加え、**足軽階層内でのモデルレベルルーティング**も設定できます。`config/settings.yaml` に `capability_tiers` テーブルを定義し、各モデルのBloom上限を指定します：
+
+```yaml
+capability_tiers:
+  gpt-5.3-codex-spark:
+    max_bloom: 3       # L1–L3: 高速・大量処理タスク
+    cost_group: chatgpt_pro
+  gpt-5.3-codex:
+    max_bloom: 4       # L1–L4: + 分析・デバッグ
+    cost_group: chatgpt_pro
+  claude-sonnet-4-6:
+    max_bloom: 5       # L1–L5: + 設計評価
+    cost_group: claude_max
+  claude-opus-4-6:
+    max_bloom: 6       # L1–L6: + 新規アーキテクチャ・戦略
+    cost_group: claude_max
+```
+
+`cost_group` フィールドで各モデルをサブスクリプションプランに紐付け、契約外のモデルへのルーティングを防止します。
+
+設定を支援する2つの組み込みスキルがあります：
+
+| スキル | 用途 |
+|--------|------|
+| `/shogun-model-list` | 全モデル × サブスクリプション × Bloom上限の参照テーブル |
+| `/shogun-bloom-config` | 対話式: 2つの質問に答えるだけで最適な `capability_tiers` YAMLを生成 |
+
+セットアップ後に `/shogun-bloom-config` を実行して、最適な `capability_tiers` 設定を生成してください。
+
 ---
 
 ## 🧭 核心思想（Philosophy）
@@ -934,13 +1019,13 @@ task:
 
 将軍システムは5つの核心原則に基づいて設計されている：
 
-| 原則                   | 説明                                                   |
-|------------------------|--------------------------------------------------------|
-| **自律陣形設計**       | テンプレートではなく、タスクの複雑さに応じて陣形を設計 |
-| **並列化**             | サブエージェントを活用し、単一障害点を作らない         |
-| **リサーチファースト** | 判断の前にエビデンスを探す                             |
-| **継続的学習**         | モデルの知識カットオフだけに頼らない                   |
-| **三角測量**           | 複数視点からのリサーチと統合的オーソライズ             |
+| 原則 | 説明 |
+|------|------|
+| **自律陣形設計** | テンプレートではなく、タスクの複雑さに応じて陣形を設計 |
+| **並列化** | サブエージェントを活用し、単一障害点を作らない |
+| **リサーチファースト** | 判断の前にエビデンスを探す |
+| **継続的学習** | モデルの知識カットオフだけに頼らない |
+| **三角測量** | 複数視点からのリサーチと統合的オーソライズ |
 
 詳細: **[docs/philosophy.md](docs/philosophy.md)**
 
@@ -961,14 +1046,14 @@ task:
 
 直接メッセージではなく、なぜファイル経由なのか？
 
-| 直接メッセージの問題                      | メールボックスの解決策                                                      |
-|-------------------------------------------|-----------------------------------------------------------------------------|
-| エージェントがクラッシュ → メッセージ消失 | YAMLファイルは再起動後も残る                                                |
-| ポーリングでAPIコールを浪費               | `inotifywait` はイベント駆動（待機中CPU 0%）                                |
-| エージェント同士が割り込み合う            | エージェントごとに専用inboxファイル — 干渉なし                              |
-| デバッグが困難                            | `.yaml` ファイルを開けばメッセージ履歴が見える                              |
-| 同時書き込みでデータ破損                  | `flock`（排他ロック）が自動で直列化                                         |
-| 配信障害（文字化け、ハング）              | メッセージ内容はファイルに保存 — tmux経由は短い「メールが届いたよ」通知だけ |
+| 直接メッセージの問題 | メールボックスの解決策 |
+|---------------------|----------------------|
+| エージェントがクラッシュ → メッセージ消失 | YAMLファイルは再起動後も残る |
+| ポーリングでAPIコールを浪費 | `inotifywait` はイベント駆動（待機中CPU 0%） |
+| エージェント同士が割り込み合う | エージェントごとに専用inboxファイル — 干渉なし |
+| デバッグが困難 | `.yaml` ファイルを開けばメッセージ履歴が見える |
+| 同時書き込みでデータ破損 | `flock`（排他ロック）が自動で直列化 |
+| 配信障害（文字化け、ハング） | メッセージ内容はファイルに保存 — tmux経由は短い「メールが届いたよ」通知だけ |
 
 ### エージェント識別（@agent_id）
 
@@ -998,9 +1083,24 @@ tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
 
 スキルは `/スキル名` で呼び出し可能。将軍に「/スキル名 を実行」と伝えるだけ。
 
+### 同梱スキル（リポジトリにコミット済み）
+
+`skills/` ディレクトリにスキルが同梱されています。どのユーザにも有用なユーティリティです：
+
+| スキル | 説明 |
+|--------|------|
+| `/skill-creator` | スキル作成のテンプレート・ガイド |
+| `/shogun-agent-status` | 全エージェントの稼働/待機状態をタスク・inbox情報付きで表示 |
+| `/shogun-model-list` | 全CLIツール × モデル × サブスクリプション × Bloom上限の参照テーブル |
+| `/shogun-bloom-config` | 対話式設定: 2つの質問に答えるだけで `capability_tiers` YAMLを生成 |
+| `/shogun-model-switch` | ライブCLI/モデル切替: settings.yaml更新 → `/exit` → 正しいフラグで再起動。Thinking ON/OFF制御も対応 |
+| `/shogun-readme-sync` | README.md と README_ja.md の同期 |
+
+システムの設定・運用を支援するスキルです。個人のワークフロースキルはボトムアップ発見プロセスで有機的に成長します。
+
 ### スキルの思想
 
-**1. スキルはコミット対象外**
+**1. 個人スキルはコミット対象外**
 
 `.claude/commands/` 配下のスキルはリポジトリにコミットしない設計。理由：
 - 各ユーザの業務・ワークフローは異なる
@@ -1143,11 +1243,11 @@ cp config/ntfy_auth.env.sample config/ntfy_auth.env
 # 2. 認証情報を記入（いずれかの方式を選択）
 ```
 
-| 方式                       | 設定                                            | 用途                                                             |
-|----------------------------|-------------------------------------------------|------------------------------------------------------------------|
-| **Bearerトークン**（推奨） | `NTFY_TOKEN=tk_your_token_here`                 | トークン認証のセルフホストntfy（`ntfy token add <user>` で生成） |
-| **Basic認証**              | `NTFY_USER=ユーザー名` + `NTFY_PASS=パスワード` | ユーザー/パスワード認証のセルフホストntfy                        |
-| **認証なし**（デフォルト） | ファイルを空のままにするか作成しない            | 公開の ntfy.sh — 認証不要                                        |
+| 方式 | 設定 | 用途 |
+|------|------|------|
+| **Bearerトークン**（推奨） | `NTFY_TOKEN=tk_your_token_here` | トークン認証のセルフホストntfy（`ntfy token add <user>` で生成） |
+| **Basic認証** | `NTFY_USER=ユーザー名` + `NTFY_PASS=パスワード` | ユーザー/パスワード認証のセルフホストntfy |
+| **認証なし**（デフォルト） | ファイルを空のままにするか作成しない | 公開の ntfy.sh — 認証不要 |
 
 優先順位: トークン > Basic認証 > なし。どちらも設定されていなければ、認証ヘッダは送信されません（後方互換）。
 
@@ -1299,17 +1399,21 @@ multi-agent-shogun/
 │   ├── shogun.md             # 将軍の指示書
 │   ├── karo.md               # 家老の指示書
 │   ├── ashigaru.md           # 足軽の指示書
+│   ├── gunshi.md             # 軍師の指示書
 │   └── cli_specific/         # CLI固有のツール説明
 │       ├── claude_tools.md   # Claude Code ツール・機能
 │       └── copilot_tools.md  # GitHub Copilot CLI ツール・機能
 │
 ├── lib/
+│   ├── agent_status.sh       # 共有 稼働/待機 判定（Claude Code + Codex）
 │   ├── cli_adapter.sh        # Multi-CLIアダプタ（Claude/Codex/Copilot/Kimi）
 │   └── ntfy_auth.sh          # ntfy認証ヘルパー
 │
 ├── scripts/                  # ユーティリティスクリプト
+│   ├── agent_status.sh       # 全エージェントの稼働/待機状態を表示
 │   ├── inbox_write.sh        # エージェントinboxへのメッセージ書き込み
 │   ├── inbox_watcher.sh      # inotifywaitでinbox変更を監視
+│   ├── switch_cli.sh         # ライブCLI/モデル切替（/exit → 再起動）
 │   ├── ntfy.sh               # スマホにプッシュ通知を送信
 │   └── ntfy_listener.sh      # スマホからのメッセージをストリーミング受信
 │
@@ -1341,6 +1445,14 @@ multi-agent-shogun/
 │   ├── integ_code.md         # 統合: コードレビュー
 │   ├── integ_analysis.md     # 統合: 分析
 │   └── context_template.md   # 汎用7セクション プロジェクトコンテキスト
+│
+├── skills/                   # 再利用可能スキル（リポジトリにコミット済み）
+│   ├── skill-creator/        # スキル作成テンプレート
+│   ├── shogun-agent-status/  # エージェント稼働状態表示
+│   ├── shogun-model-list/    # モデル能力参照テーブル
+│   ├── shogun-bloom-config/  # Bloom階層設定ツール
+│   ├── shogun-model-switch/  # ライブCLI/モデル切替
+│   └── shogun-readme-sync/   # README同期
 │
 ├── memory/                   # Memory MCP保存場所
 ├── dashboard.md              # リアルタイム状況一覧
@@ -1479,38 +1591,68 @@ tmux respawn-pane -t shogun:0.0 -k 'claude --model opus --dangerously-skip-permi
 
 ## 📚 tmux クイックリファレンス
 
-| コマンド                          | 説明                     |
-|-----------------------------------|--------------------------|
-| `tmux attach -t shogun`           | 将軍に接続               |
-| `tmux attach -t multiagent`       | ワーカーに接続           |
-| `Ctrl+B` の後 `0-8`               | ペイン間を切り替え       |
-| `Ctrl+B` の後 `d`                 | デタッチ（実行継続）     |
-| `tmux kill-session -t shogun`     | 将軍セッションを停止     |
+| コマンド | 説明 |
+|----------|------|
+| `tmux attach -t shogun` | 将軍に接続 |
+| `tmux attach -t multiagent` | ワーカーに接続 |
+| `Ctrl+B` の後 `0-8` | ペイン間を切り替え |
+| `Ctrl+B` の後 `d` | デタッチ（実行継続） |
+| `tmux kill-session -t shogun` | 将軍セッションを停止 |
 | `tmux kill-session -t multiagent` | ワーカーセッションを停止 |
 
 ### 🖱️ マウス操作
 
 `first_setup.sh` が `~/.tmux.conf` に `set -g mouse on` を自動設定するため、マウスによる直感的な操作が可能です：
 
-| 操作                 | 説明                                   |
-|----------------------|----------------------------------------|
-| マウスホイール       | ペイン内のスクロール（出力履歴の確認） |
-| ペインをクリック     | ペイン間のフォーカス切替               |
-| ペイン境界をドラッグ | ペインのリサイズ                       |
+| 操作 | 説明 |
+|------|------|
+| マウスホイール | ペイン内のスクロール（出力履歴の確認） |
+| ペインをクリック | ペイン間のフォーカス切替 |
+| ペイン境界をドラッグ | ペインのリサイズ |
 
 キーボード操作に不慣れな場合でも、マウスだけでペインの切替・スクロール・リサイズが行えます。
 
 ---
 
-## v3.0の新機能 — Multi-CLI
+## v3.5の新機能 — Dynamic Model Routing
 
-> **Shogunはもう Claude 専用ではない。** 4つのAIコーディングCLIを1つの軍に混成せよ。
+> **タスクに最適なモデルへ — エージェント再起動なしで。** Sonnet 4.6がOpusとの差を1.2pp（SWE-bench 79.6% vs 80.8%）まで縮め、タスク単位のモデルルーティングがはじめて費用対効果の合う選択に。
 
-- **Multi-CLIがファーストクラスアーキテクチャに** — `lib/cli_adapter.sh` がエージェントごとにCLIを動的選択。`settings.yaml` の1行を変えるだけで、任意のワーカーをClaude Code / Codex / Copilot / Kimi に切り替え可能
-- **OpenAI Codex CLI統合** — GPT-5.3-codexを `--dangerously-bypass-approvals-and-sandbox` で真の自律実行。`--no-alt-screen` でエージェントの作業内容がtmuxに可視化
-- **CLIバイパスフラグの発見** — `--full-auto` は実は全自動ではない（`-a on-request` のエイリアス）。4CLIすべての正しいバイパスフラグを文書化
-- **ハイブリッドアーキテクチャ** — 指揮層（将軍＋家老）はMemory MCPとメールボックス連携のためClaude Codeに固定。作業層（足軽）はCLI非依存
-- **コミュニティ貢献によるCLIアダプタ** — [@yuto-ts](https://github.com/yuto-ts)（cli_adapter.sh）、[@circlemouth](https://github.com/circlemouth)（Codex対応）、[@koba6316](https://github.com/koba6316)（タスクルーティング）に感謝
+- **Bloom Dynamic Model Routing** — `capability_tiers` でモデルごとにBloom上限を定義。L1-L3→Spark（1000+ tok/s）、L4→Sonnet 4.6、L5→Sonnet 4.6 + extended thinking、L6→Opus（本当に新規な設計のみ）。エージェント再起動不要で切り替わる
+- **Sonnet 4.6が新標準** — SWE-bench 79.6%、Opus 4.6との差わずか1.2pp。軍師をOpus→Sonnet 4.6に降格。全足軽のデフォルトもSonnet 4.6に。YAML1行を変えるだけ、再起動不要
+- **`/shogun-model-list` スキル** — 全CLIツール × モデル × サブスクリプション × Bloom上限の参照テーブル。Sonnet 4.6とSparkの位置づけを更新
+- **`/shogun-bloom-config` スキル** — 対話式設定: 2つの質問に答えるだけで最適な `capability_tiers` YAMLを生成
+
+<details>
+<summary><b>v3.4の機能 — Bloom→エージェントルーティング、E2Eテスト、Stop Hook</b></summary>
+
+- **Bloom→エージェントルーティング** — 動的モデル切り替えをエージェントレベルのルーティングに置換。L1-L3→足軽、L4-L6→軍師。セッション中の `/model opus` 昇格は不要に
+- **軍師（Gunshi）がファーストクラスエージェントに** — ペイン8の戦略参謀。深い分析、設計レビュー、アーキテクチャ評価を担当
+- **E2Eテストスイート（19テスト、7シナリオ）** — モックCLIフレームワークが分離されたtmuxセッションでエージェント動作をシミュレート
+- **Stop hook inbox配信** — Claude Codeエージェントが `.claude/settings.json` のStop hookでターン終了時に自動的にinboxを確認。`send-keys` 割り込み問題を根絶
+- **モデルデフォルト更新** — 家老: Opus→Sonnet。軍師: Opus（深い推論）。全足軽: Sonnet（統一）
+- **Codex CLIスタートアッププロンプト** — `cli_adapter.sh` の `get_startup_prompt()` が初期 `[PROMPT]` 引数をCodex CLIに渡す
+- **YAMLスリム化ユーティリティ** — `scripts/slim_yaml.sh` が既読メッセージ・完了コマンドをアーカイブ
+
+</details>
+
+## v3.3.2の新機能 — GPT-5.3-Codex-Spark対応
+
+> **新モデル、同じYAML。** `settings.yaml` の任意のCodexエージェントに `model: gpt-5.3-codex-spark` を追加するだけ。
+
+- **Codex `--model` フラグ対応** — `build_cli_command()` が `settings.yaml` のモデル設定を `--model` フラグ経由でCodex CLIに渡す。`gpt-5.3-codex-spark` と今後のCodexモデルに対応
+- **独立レート制限** — SparkはGPT-5.3-Codexとは独立したレート制限枠で動作。異なる足軽に両モデルを割り当てれば**実効スループットが2倍**に
+- **起動時表示** — `shutsujin_departure.sh` が汎用的なエフォートレベルの代わりに実際のモデル名（例: `codex/gpt-5.3-codex-spark`）を表示
+
+<details>
+<summary><b>v3.0の機能 — Multi-CLI</b></summary>
+
+- **Multi-CLIがファーストクラスアーキテクチャに** — `lib/cli_adapter.sh` がエージェントごとにCLIを動的選択
+- **OpenAI Codex CLI統合** — GPT-5.3-codexを `--dangerously-bypass-approvals-and-sandbox` で真の自律実行
+- **ハイブリッドアーキテクチャ** — 指揮層はClaude Code固定、作業層はCLI非依存
+- **コミュニティ貢献** — [@yuto-ts](https://github.com/yuto-ts)、[@circlemouth](https://github.com/circlemouth)、[@koba6316](https://github.com/koba6316)
+
+</details>
 
 <details>
 <summary><b>v2.0の機能</b></summary>
@@ -1519,7 +1661,7 @@ tmux respawn-pane -t shogun:0.0 -k 'claude --model opus --dangerously-skip-permi
 - **SayTask通知** — ストリーク追跡、Eat the Frog、行動心理学に基づくモチベーション管理
 - **ペインボーダータスク表示** — tmuxペインボーダーで各エージェントの現在のタスクを一目で確認
 - **シャウトモード**（デフォルト）— 足軽がタスク完了時にパーソナライズされた戦国風の叫びを表示。`--silent` で無効化
-- **pty直接書き込みメールボックス（v3.1）** — ファイルベースのinboxで通信。起床nudgeはptyデバイス（`/dev/pts/N`）に直接書き込み、tmuxを完全バイパス。send-keysをnudge配信から完全排除し、カーソルバグと配信障害を根絶
+- **エージェント自己監視+エスカレーション（v3.2）** — 各エージェントが自分のinboxファイルを `inotifywait` で監視（ポーリングゼロ、即座に起床）。フォールバック: `tmux send-keys` で短いnudge（テキストとEnterを分離送信、Codex CLI対応）。3段階エスカレーション: 標準nudge（0-2分）→ Escape×2+nudge（2-4分）→ `/clear` 強制リセット（4分以上）。Linux FSシンボリックリンクでWSL2の9P FS inotify問題を解決
 - **エージェント自己識別**（`@agent_id`）— tmuxユーザーオプションによる安定したID、ペイン再配置の影響を受けない
 - **決戦モード**（`-k` フラグ）— 全足軽Opusの最大能力陣形
 - **タスク依存関係システム**（`blockedBy`）— 依存タスクの自動ブロック解除

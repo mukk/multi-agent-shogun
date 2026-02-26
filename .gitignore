@@ -52,6 +52,7 @@
 !lib/
 !lib/cli_adapter.sh
 !lib/ntfy_auth.sh
+!lib/agent_status.sh
 
 # Multi-CLI: Codex auto-load file
 !AGENTS.md
@@ -93,6 +94,9 @@
 !scripts/seo_qc.py
 !scripts/seo_qc.sh
 !scripts/stop_hook_inbox.sh
+!scripts/agent_status.sh
+!scripts/ratelimit_check.sh
+!scripts/switch_cli.sh
 
 
 # SayTask (sample template only, not actual data)
@@ -125,33 +129,20 @@
 !images/screenshots/hero/latest-translucent-20260210-190453.png
 !images/screenshots/hero/latest-translucent-20260208-084602.png
 
-# Skills (skill-creator only)
+# Skills (public OSS skills committed to repo)
 !skills/
 !skills/skill-creator/
 !skills/skill-creator/SKILL.md
-<<<<<<< HEAD
-!skills/learning-module-scaffold/
-!skills/learning-module-scaffold/SKILL.md
-!skills/review-mode-generator/
-!skills/review-mode-generator/SKILL.md
-!skills/kifu-parser/
-!skills/kifu-parser/SKILL.md
-!skills/haskell-module-splitter/
-!skills/haskell-module-splitter/SKILL.md
-!skills/be-fe-adapter-pattern/
-!skills/be-fe-adapter-pattern/SKILL.md
-!skills/spa-to-react-router-migrator/
-!skills/spa-to-react-router-migrator/SKILL.md
-!skills/url-state-encoder/
-!skills/url-state-encoder/SKILL.md
-!skills/wordpress-theme-image-audit/
-!skills/wordpress-theme-image-audit/SKILL.md
-!skills/production-rendering-audit/
-!skills/production-rendering-audit/SKILL.md
-!skills/wp-picture-webp-auditor/
-!skills/wp-picture-webp-auditor/SKILL.md
-=======
->>>>>>> 101e062 (feat: FR-066 ntfy auth, D001-D008 safety rules, CI/CD, and OSS docs)
+!skills/shogun-agent-status/
+!skills/shogun-agent-status/SKILL.md
+!skills/shogun-model-list/
+!skills/shogun-model-list/SKILL.md
+!skills/shogun-bloom-config/
+!skills/shogun-bloom-config/SKILL.md
+!skills/shogun-model-switch/
+!skills/shogun-model-switch/SKILL.md
+!skills/shogun-readme-sync/
+!skills/shogun-readme-sync/SKILL.md
 
 # Test specs
 !tests/specs/
@@ -183,5 +174,3 @@
 !.github/
 !.github/workflows/
 !.github/workflows/*.yml
-.venv/lib/python3.10/site-packages/pyyaml-6.0.3.dist-info/licenses/LICENSE
-.venv/lib/python3.10/site-packages/setuptools-59.6.0.dist-info/LICENSE
